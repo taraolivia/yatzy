@@ -1,0 +1,7 @@
+{
+  "name": "@yatzy/theme-yellow",
+  "private": true,
+  "description": "Yellow dice skin for Yatzy",
+  "version": "0.1.0",
+  "files": ["*"]
+}

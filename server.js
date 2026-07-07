@@ -260,6 +260,28 @@ function startGame(game, player, version) {
   touch(game);
 }
 
+function restartGame(game, player, version) {
+  assertVersion(game, version);
+  if (!game.players.some((entry) => entry.seatId === player.seatId)) throw httpError(403, "Du er ikke med i rommet.");
+  if (game.status !== "finished") throw httpError(400, "Arket er ikke ferdig ennå.");
+
+  const rules = getRules(game.mode);
+  for (const entry of game.players) {
+    entry.scores = createEmptyScores(game.mode);
+    entry.savedRolls = 0;
+  }
+
+  game.status = "playing";
+  game.turnIndex = 0;
+  game.currentSeatId = game.players[0]?.seatId || null;
+  game.dice = [];
+  game.held = Array.from({ length: rules.diceCount }, () => false);
+  game.rollsUsed = 0;
+  game.log = [];
+  addLog(game, `${player.name} startet et nytt ark.`);
+  touch(game);
+}
+
 function requireActiveTurn(game, player) {
   if (game.status !== "playing") throw httpError(400, "Spillet er ikke i gang.");
   if (game.currentSeatId !== player.seatId) throw httpError(403, "Det er ikke din tur.");
@@ -305,6 +327,7 @@ function toggleHold(game, player, version, index) {
   if (!Number.isInteger(index) || index < 0 || index >= rules.diceCount) throw httpError(400, "Ugyldig terning.");
   if (game.rollsUsed === 0) throw httpError(400, "Kast f\u00f8rst, s\u00e5 kan du holde terninger.");
   game.held[index] = !game.held[index];
+  addLog(game, `${player.name} ${game.held[index] ? "sparte" : "slapp"} terning ${index + 1}.`);
   touch(game);
 }
 
@@ -424,6 +447,8 @@ async function handleApi(req, res, url) {
 
   if (action === "start") {
     startGame(game, player, body.version);
+  } else if (action === "restart") {
+    restartGame(game, player, body.version);
   } else if (action === "roll") {
     rollDice(game, player, body.version, body.dice ?? null);
   } else if (action === "hold") {

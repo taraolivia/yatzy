@@ -27,12 +27,14 @@ const els = {
   rollMeta: document.querySelector("#rollMeta"),
   diceCustomizer: document.querySelector("#diceCustomizer"),
   soundToggle: document.querySelector("#soundToggle"),
+  scoreLastMove: document.querySelector("#scoreLastMove"),
   scoreTable: document.querySelector("#scoreTable"),
   gameLog: document.querySelector("#gameLog"),
   chatForm: document.querySelector("#chatForm"),
   chatInput: document.querySelector("#chatInput"),
   chatList: document.querySelector("#chatList"),
   sendChat: document.querySelector("#sendChat"),
+  celebrationLayer: document.querySelector("#celebrationLayer"),
   toast: document.querySelector("#toast")
 };
 
@@ -44,6 +46,8 @@ const state = {
   pending: false,
   chatPending: false,
   toastTimer: null,
+  celebrationTimer: null,
+  celebratedYatzies: new Set(),
   isRolling: false,
   animatedDice: [],
   rollTimer: null,
@@ -62,25 +66,48 @@ const state = {
     hideTimer: null
   },
   soundEnabled: loadSoundEnabled(),
-  audioContext: null
+  audioContext: null,
+  rollAudio: null,
+  rollAudioFailed: false
 };
 
-const DICE_THEMES = new Set(["default", "wooden", "blueGreenMetal", "rock", "smooth", "smooth-pip"]);
-const ROLL_ANIMATION_MS = 720;
+const DICE_THEMES = new Set(["default", "wooden", "blueGreenMetal", "rock", "smooth", "smooth-pip", "lavender", "gold", "glitter", "yellow"]);
+const ROLL_ANIMATION_MS = 650;
+const ROLL_SOUND_PATH = "/assets/sounds/dice-roll.mp3";
 const DICE_3D_MODULE_PATH = "/vendor/dice-box/dice-box.es.min.js";
 const DICE_3D_ASSET_PATH = "/assets/";
 const DICE_3D_MIN_ROLL_MS = 980;
 const DICE_3D_START_TIMEOUT_MS = 8000;
 const DICE_3D_ROLL_TIMEOUT_MS = 16000;
 const DICE_3D_SETTLE_PAD_MS = 450;
+const DICE_3D_PHYSICS = {
+  gravity: 2,
+  mass: 1,
+  friction: 0.8,
+  restitution: 0,
+  angularDamping: 0.2,
+  linearDamping: 0.4,
+  spinForce: 6,
+  throwForce: 5,
+  startingHeight: 8,
+  settleTimeout: 5000,
+  delay: 100,
+  scale: 10
+};
 const DICE_3D_THEME_COLORS = {
   default: "#f8f3e6",
   wooden: "#8b5e34",
   blueGreenMetal: "#4faeaa",
   rock: "#b7aca1",
-  smooth: "#f8f3e6",
-  "smooth-pip": "#ffffff"
+  smooth: "#e6a1c7",
+  "smooth-pip": "#ffffff",
+  lavender: "#c7a7ff",
+  gold: "#f1bb45",
+  glitter: "#f8d66d",
+  yellow: "#ffefaa"
 };
+const YATZY_CATEGORY_IDS = new Set(["yatzy", "maxiYatzy"]);
+const CONFETTI_COLORS = ["#f4bf3f", "#e45c4f", "#1d8a70", "#2f6df6", "#ffffff"];
 
 const pipMap = {
   1: [4],
@@ -201,6 +228,7 @@ async function action(name, extra = {}) {
   if (!state.game || state.pending) return;
   const isRoll = name === "roll";
   const startedAt = Date.now();
+  const previousGame = state.game;
   let rollDiceValues = null;
   state.pending = true;
   if (isRoll) {
@@ -228,10 +256,15 @@ async function action(name, extra = {}) {
       stopRollAnimation();
       state.game = payload.game;
     } else if (name === "score") {
+      maybeCelebrateYatzy(previousGame, payload.game);
       state.game = payload.game;
       playScoreSound();
     } else if (name === "start") {
       state.game = payload.game;
+      playStartSound();
+    } else if (name === "restart") {
+      state.game = payload.game;
+      hideOverlay();
       playStartSound();
     } else {
       state.game = payload.game;
@@ -250,6 +283,7 @@ async function sendChat(message) {
   const cleanMessage = String(message || "").trim();
   if (!cleanMessage) return;
 
+  const shouldRefocus = document.activeElement === els.chatInput || document.activeElement === els.sendChat;
   state.chatPending = true;
   renderChat();
   try {
@@ -267,6 +301,7 @@ async function sendChat(message) {
   } finally {
     state.chatPending = false;
     render();
+    if (shouldRefocus) focusChatInput();
   }
 }
 
@@ -277,10 +312,15 @@ function connectEvents(code) {
   state.events.addEventListener("open", () => setConnection("Live"));
   state.events.addEventListener("state", (event) => {
     const nextGame = JSON.parse(event.data);
-    const shouldAnimate = shouldAnimateIncomingRoll(state.game, nextGame);
-    state.game = nextGame;
+    const previousGame = state.game;
+    const shouldAnimate = shouldAnimateIncomingRoll(previousGame, nextGame);
+    maybeCelebrateYatzy(previousGame, nextGame);
     setConnection("Live");
-    if (shouldAnimate) void animateIncomingRoll();
+    if (shouldAnimate) {
+      void animateIncomingRoll(previousGame, nextGame);
+      return;
+    }
+    state.game = nextGame;
     render();
   });
   state.events.addEventListener("error", () => setConnection("Kobler til igjen"));
@@ -291,6 +331,8 @@ function leaveRoom() {
   state.game = null;
   state.playerToken = null;
   state.seatId = null;
+  state.celebratedYatzies.clear();
+  hideOverlay();
   const url = new URL(window.location.href);
   url.searchParams.delete("room");
   window.history.replaceState({}, "", url);
@@ -309,6 +351,10 @@ function me() {
 
 function isMyTurn() {
   return Boolean(state.game && state.game.status === "playing" && state.game.currentSeatId === state.seatId);
+}
+
+function canRollDice() {
+  return Boolean(state.game && isMyTurn() && state.game.rollsLeft > 0 && !state.pending && !state.isRolling);
 }
 
 function diceCount() {
@@ -346,12 +392,9 @@ function prepareDice3d() {
       const diceBox = new DiceBox({
         container: "#dice3dStage",
         assetPath: DICE_3D_ASSET_PATH,
-        theme: currentDiceTheme(),
-        themeColor: dice3dThemeColor(),
+        ...dice3dConfig(),
         onRollComplete: () => markDice3dRollComplete(),
-        offscreen: false,
-        // Keep the library dice large enough to read on the table.
-        scale: 9
+        offscreen: false
       });
       state.dice3d.instance = diceBox;
       return diceBox.init();
@@ -396,8 +439,17 @@ function dice3dRollNotation(count, theme = currentDiceTheme()) {
   return theme === "smooth-pip" ? `${count}dpip` : `${count}d6`;
 }
 
+function dice3dConfig(theme = currentDiceTheme()) {
+  return {
+    ...DICE_3D_PHYSICS,
+    theme,
+    themeColor: dice3dThemeColor(theme)
+  };
+}
+
 async function startDice3dRoll() {
   const rollId = state.dice3d.rollId;
+  setDice3dVisible(true);
   await prepareDice3d();
   if (rollId !== state.dice3d.rollId) return false;
   if (!state.isRolling) return false;
@@ -413,7 +465,7 @@ async function startDice3dRoll() {
   try {
     const theme = currentDiceTheme();
     state.dice3d.rollPromise = state.dice3d.instance
-      .roll(dice3dRollNotation(count, theme), { theme, themeColor: dice3dThemeColor(theme) })
+      .roll(dice3dRollNotation(count, theme), { theme, themeColor: dice3dThemeColor(theme), newStartPoint: true })
       .catch((error) => {
         console.warn("3D dice roll failed:", error);
         state.dice3d.failed = true;
@@ -445,7 +497,7 @@ function markDice3dRollComplete() {
 
 async function syncDice3dTheme(theme = currentDiceTheme()) {
   if (!canUseDice3d()) return;
-  return state.dice3d.instance.updateConfig({ theme, themeColor: dice3dThemeColor(theme) }).catch((error) => {
+  return state.dice3d.instance.updateConfig(dice3dConfig(theme)).catch((error) => {
     console.warn("3D dice theme update failed:", error);
   });
 }
@@ -531,7 +583,7 @@ function cancelDice3dRoll(rollId = state.dice3d.rollId) {
   state.dice3d.settlePromise = null;
   state.dice3d.settleResolve = null;
   setDice3dVisible(false);
-  state.dice3d.instance?.clear?.();
+  clearDice3dInstance();
 }
 
 function clearDice3dStage() {
@@ -542,16 +594,25 @@ function clearDice3dStage() {
   state.dice3d.settlePromise = null;
   state.dice3d.settleResolve = null;
   setDice3dVisible(false);
-  state.dice3d.instance?.clear?.();
+  clearDice3dInstance();
 }
 
-async function startRollAnimation() {
-  if (!state.game) return;
+function clearDice3dInstance() {
+  try {
+    state.dice3d.instance?.clear?.();
+  } catch (error) {
+    // Dice-box can briefly expose an instance before its world clear API is ready.
+  }
+}
+
+async function startRollAnimation(animationGame = state.game) {
+  if (!animationGame) return;
   window.clearInterval(state.rollTimer);
   state.dice3d.rollId += 1;
-  const count = diceCount();
-  const currentDice = state.game.dice.length ? state.game.dice : Array.from({ length: count }, () => randomDie());
-  state.animatedDice = currentDice.map((value, index) => (state.game.held[index] ? value : randomDie()));
+  const count = animationGame.mode === "maxi" ? 6 : 5;
+  const held = animationGame.held.slice(0, count);
+  const currentDice = animationGame.dice.length ? animationGame.dice : Array.from({ length: count }, () => randomDie());
+  state.animatedDice = currentDice.map((value, index) => (held[index] ? value : randomDie()));
   state.isRolling = true;
   renderDice();
   state.dice3d.startPromise = startDice3dRoll().then((didStart) => {
@@ -559,7 +620,7 @@ async function startRollAnimation() {
     return didStart;
   });
   state.rollTimer = window.setInterval(() => {
-    state.animatedDice = state.animatedDice.map((value, index) => (state.game?.held[index] ? value : randomDie()));
+    state.animatedDice = state.animatedDice.map((value, index) => (held[index] ? value : randomDie()));
     renderDice();
   }, 62);
 }
@@ -580,12 +641,15 @@ function shouldAnimateIncomingRoll(previous, next) {
   return previous.dice.join(",") !== next.dice.join(",") && next.rollsUsed >= previous.rollsUsed;
 }
 
-async function animateIncomingRoll() {
+async function animateIncomingRoll(previousGame, nextGame) {
   const startedAt = Date.now();
-  startRollAnimation();
+  if (!previousGame || !nextGame) return;
+  state.game = previousGame;
+  startRollAnimation(previousGame);
   playRollSound(0.55);
   await waitForRollVisual(startedAt);
   stopRollAnimation();
+  state.game = nextGame;
   render();
 }
 
@@ -598,17 +662,57 @@ function ensureAudioContext() {
   return state.audioContext;
 }
 
-function playRollSound(volume = 0.72) {
+function ensureRollAudio() {
+  if (state.rollAudio || state.rollAudioFailed || !window.Audio) return state.rollAudio;
+
+  state.rollAudio = new Audio(ROLL_SOUND_PATH);
+  state.rollAudio.preload = "auto";
+  state.rollAudio.addEventListener("error", () => {
+    state.rollAudioFailed = true;
+  }, { once: true });
+  return state.rollAudio;
+}
+
+function playRollSound(volume = 1) {
+  if (!state.soundEnabled) return;
+  const rollAudio = ensureRollAudio();
+  if (rollAudio && !state.rollAudioFailed) {
+    rollAudio.pause();
+    rollAudio.currentTime = 0;
+    rollAudio.volume = Math.max(0, Math.min(1, volume));
+    const playback = rollAudio.play();
+    if (playback?.catch) {
+      playback.catch((error) => {
+        if (error?.name !== "NotAllowedError") {
+          state.rollAudioFailed = true;
+          playSyntheticRollSound(volume);
+        }
+      });
+    }
+    return;
+  }
+
+  playSyntheticRollSound(volume);
+}
+
+function playSyntheticRollSound(volume = 0.72) {
   const audio = ensureAudioContext();
   if (!audio) return;
 
-  const duration = 0.56;
+  [0, 0.055, 0.12, 0.2, 0.31, 0.43].forEach((delay, index) => {
+    const strength = (0.18 - index * 0.014) * volume;
+    playNoiseBurst(audio, delay, 0.045 + index * 0.004, Math.max(0.06, strength));
+    playTone(175 + Math.random() * 95, 0.04, 0.045 * volume, delay, index % 2 ? "triangle" : "square");
+  });
+}
+
+function playNoiseBurst(audio, delay, duration, volume) {
   const sampleCount = Math.floor(audio.sampleRate * duration);
   const buffer = audio.createBuffer(1, sampleCount, audio.sampleRate);
   const channel = buffer.getChannelData(0);
   for (let index = 0; index < sampleCount; index += 1) {
     const fade = 1 - index / sampleCount;
-    channel[index] = (Math.random() * 2 - 1) * fade * 0.9;
+    channel[index] = (Math.random() * 2 - 1) * fade;
   }
 
   const source = audio.createBufferSource();
@@ -616,20 +720,17 @@ function playRollSound(volume = 0.72) {
 
   const filter = audio.createBiquadFilter();
   filter.type = "bandpass";
-  filter.frequency.value = 1050;
-  filter.Q.value = 1.8;
+  filter.frequency.value = 850 + Math.random() * 650;
+  filter.Q.value = 2.4;
 
   const gain = audio.createGain();
-  gain.gain.setValueAtTime(0.0001, audio.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.22 * volume, audio.currentTime + 0.03);
-  gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + duration);
+  const start = audio.currentTime + delay;
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
 
   source.connect(filter).connect(gain).connect(audio.destination);
-  source.start();
-
-  for (let tick = 0; tick < 4; tick += 1) {
-    playTone(220 + tick * 45, 0.035, 0.07 * volume, tick * 0.085, "triangle");
-  }
+  source.start(start);
 }
 
 function playClickSound() {
@@ -644,6 +745,13 @@ function playScoreSound() {
 function playStartSound() {
   playTone(300, 0.08, 0.08, 0, "triangle");
   playTone(450, 0.08, 0.08, 0.08, "triangle");
+}
+
+function playYatzySound() {
+  [523, 659, 784, 1047].forEach((note, index) => {
+    playTone(note, 0.13, 0.09, index * 0.075, "triangle");
+  });
+  playTone(1319, 0.2, 0.075, 0.34, "sine");
 }
 
 function playTone(frequency, duration, volume, delay = 0, type = "sine") {
@@ -666,24 +774,40 @@ function applyDiceTheme(theme) {
   const safeTheme = DICE_THEMES.has(theme) ? theme : "default";
   document.body.dataset.diceTheme = safeTheme;
   saveDiceTheme(safeTheme);
-  syncDice3dTheme(safeTheme);
+  if (!state.isRolling) {
+    clearDice3dStage();
+    syncDice3dTheme(safeTheme);
+  }
+  renderDiceCustomizer();
+}
+
+function renderDiceCustomizer() {
   if (!els.diceCustomizer) return;
+  const theme = currentDiceTheme();
+  const disabled = state.pending || state.isRolling;
   els.diceCustomizer.querySelectorAll("[data-dice-theme]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.diceTheme === safeTheme);
+    button.classList.toggle("is-active", button.dataset.diceTheme === theme);
+    button.disabled = disabled;
   });
 }
 
 function renderSoundToggle() {
   if (!els.soundToggle) return;
+  const label = state.soundEnabled ? "Lyd på" : "Lyd av";
   els.soundToggle.setAttribute("aria-pressed", String(state.soundEnabled));
-  els.soundToggle.textContent = state.soundEnabled ? "Lyd p\u00e5" : "Lyd av";
+  els.soundToggle.setAttribute("aria-label", label);
+  els.soundToggle.setAttribute("title", label);
+  els.soundToggle.innerHTML = `<span aria-hidden="true">${state.soundEnabled ? "&#128266;" : "&#128263;"}</span>`;
 }
 
 function render() {
   const hasGame = Boolean(state.game);
+  const myTurn = hasGame && isMyTurn();
   document.body.classList.toggle("in-game", hasGame);
+  document.body.classList.toggle("is-my-turn", myTurn);
   els.setupView.classList.toggle("is-hidden", hasGame);
   els.gameView.classList.toggle("is-hidden", !hasGame);
+  els.gameView.classList.toggle("is-my-turn", myTurn);
   els.createName.value ||= loadName();
   els.joinName.value ||= loadName();
 
@@ -699,7 +823,8 @@ function render() {
   renderScoreTable();
   renderLog();
   renderChat();
-  prepareDice3d();
+  renderDiceCustomizer();
+  renderGameOverOverlay();
 }
 
 function renderRoom() {
@@ -754,8 +879,8 @@ function renderTurn() {
     els.turnEyebrow.textContent = "Vinner";
     els.turnTitle.textContent = winnerText || "Ferdig";
   } else if (isMyTurn()) {
-    els.turnEyebrow.textContent = "Din tur";
-    els.turnTitle.textContent = "Kast terningene";
+    els.turnEyebrow.textContent = "Din tur!";
+    els.turnTitle.textContent = game.rollsUsed > 0 ? "Velg score eller kast igjen" : "Kast terningene";
   } else {
     els.turnEyebrow.textContent = "Venter";
     els.turnTitle.textContent = player ? `${player.name} sin tur` : "Spillet er i gang";
@@ -780,11 +905,9 @@ function renderDice() {
     index,
     held: Boolean(game.held[index])
   }));
-  const activeDice = diceEntries.filter((entry) => !entry.held);
-  const heldDice = diceEntries.filter((entry) => entry.held);
 
   if (hasSplitDiceLayout()) {
-    renderSplitDice(activeDice, heldDice, canHold, count);
+    renderSplitDice(diceEntries, canHold, count);
   } else if (ensureLegacyDiceRow()) {
     renderLegacyDice(diceEntries, canHold);
   } else {
@@ -798,8 +921,7 @@ function renderDice() {
     });
   }
 
-  const canRoll = isMyTurn() && game.rollsLeft > 0;
-  els.rollDice.disabled = state.pending || !canRoll;
+  els.rollDice.disabled = !canRollDice();
   els.rollDice.textContent = state.isRolling ? "Ruller" : game.rollsUsed === 0 ? "Kast" : "Kast igjen";
   els.rollMeta.textContent = rollMetaText(game);
 }
@@ -808,18 +930,28 @@ function hasSplitDiceLayout() {
   return Boolean(els.diceTable && els.activeDiceLabel && els.heldDiceLabel && els.activeDiceRow && els.heldDiceRow);
 }
 
-function renderSplitDice(activeDice, heldDice, canHold, count) {
+function renderSplitDice(diceEntries, canHold, count) {
+  const activeCount = diceEntries.filter((entry) => !entry.held).length;
+  const heldCount = diceEntries.length - activeCount;
   els.diceTable.classList.toggle("is-rolling", state.isRolling);
   els.diceTable.classList.toggle("is-3d-roll-visual", shouldUseDice3dVisual());
   els.diceTable.classList.toggle("has-3d-roll", state.dice3d.visible);
-  els.activeDiceLabel.textContent = `${activeDice.length}/${count}`;
-  els.heldDiceLabel.textContent = `${heldDice.length}/${count}`;
-  els.activeDiceRow.innerHTML = activeDice.length
-    ? activeDice.map((entry) => renderDieButton(entry, canHold, "active")).join("")
-    : renderEmptyFelt("Alle spart");
-  els.heldDiceRow.innerHTML = heldDice.length
-    ? heldDice.map((entry) => renderDieButton(entry, canHold, "held")).join("")
-    : renderGhostDice(Math.min(count, 6));
+  els.activeDiceRow.style.setProperty("--dice-count", count);
+  els.heldDiceRow.style.setProperty("--dice-count", count);
+  els.activeDiceLabel.textContent = `${activeCount}/${count}`;
+  els.heldDiceLabel.textContent = `${heldCount}/${count}`;
+  els.activeDiceRow.innerHTML = renderDiceSlots(diceEntries, canHold, "active", (entry) => !entry.held);
+  els.heldDiceRow.innerHTML = renderDiceSlots(diceEntries, canHold, "held", (entry) => entry.held);
+}
+
+function renderDiceSlots(diceEntries, canHold, lane, shouldShowDie) {
+  return diceEntries
+    .map((entry) => `
+      <span class="dice-slot ${shouldShowDie(entry) ? "" : "is-empty"}">
+        ${shouldShowDie(entry) ? renderDieButton(entry, canHold, lane) : renderDieGhost()}
+      </span>
+    `)
+    .join("");
 }
 
 function ensureLegacyDiceRow() {
@@ -860,7 +992,27 @@ function throwStyle(index) {
 }
 
 function renderGhostDice(count) {
-  return Array.from({ length: count }, () => '<span class="die-ghost" aria-hidden="true"></span>').join("");
+  return Array.from({ length: count }, () => renderDieGhost()).join("");
+}
+
+function renderDieGhost() {
+  return '<span class="die-ghost" aria-hidden="true"></span>';
+}
+
+function isKeyboardControlTarget(target) {
+  if (!(target instanceof Element)) return false;
+  if (target.isContentEditable) return true;
+  return Boolean(target.closest("input, textarea, select, button, a, [role='button']"));
+}
+
+function handleRollShortcut(event) {
+  const isSpace = event.code === "Space" || event.key === " " || event.key === "Spacebar";
+  if (!isSpace || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (isKeyboardControlTarget(event.target)) return;
+  if (!canRollDice()) return;
+
+  event.preventDefault();
+  void action("roll");
 }
 
 function renderEmptyFelt(label) {
@@ -887,6 +1039,8 @@ function renderScoreTable() {
   const title = game.mode === "maxi" ? "MAXI YATZY" : "YATZY";
   const scoreColumnCount = scoreGridColumnCount();
   const fillerCount = Math.max(0, scoreColumnCount - game.players.length);
+  const latestMove = latestMoveMessage(game);
+  renderScoreLastMove(latestMove);
   const header = `
     <caption>
       <span class="score-brand">${escapeHtml(title)}</span>
@@ -919,8 +1073,14 @@ function renderScoreTable() {
   });
 }
 
+function renderScoreLastMove(message) {
+  if (!els.scoreLastMove) return;
+  els.scoreLastMove.textContent = message;
+  els.scoreLastMove.classList.toggle("is-empty", !message);
+}
+
 function scoreGridColumnCount() {
-  return Math.max(state.game.players.length, 4);
+  return state.game.players.length;
 }
 
 function scorePlayerHeader(player) {
@@ -980,7 +1140,23 @@ function isCategoryPlayable(category) {
 
 function renderCategoryLabel(category) {
   const note = categoryNote(category);
-  return `<span class="score-line-label">${escapeHtml(classicCategoryLabel(category))}${note ? ` <small>${escapeHtml(note)}</small>` : ""}</span>`;
+  return `<span class="score-line-label">${categoryIconHtml(category)}${escapeHtml(classicCategoryLabel(category))}${note ? ` <small>${escapeHtml(note)}</small>` : ""}</span>`;
+}
+
+function categoryIconHtml(category) {
+  if (category.section !== "upper" || !category.face) return "";
+  return `<span class="score-die-icon" aria-hidden="true">&#${9855 + category.face};</span>`;
+}
+
+function latestMoveMessage(game) {
+  const log = game?.log || [];
+  const latestMove = log.find((entry) => (
+    entry.message.includes("kastet")
+    || entry.message.includes("skrev")
+    || entry.message.includes("sparte")
+    || entry.message.includes("slapp")
+  ));
+  return latestMove?.message || "";
 }
 
 function classicCategoryLabel(category) {
@@ -1055,6 +1231,119 @@ function renderChat() {
   if (els.sendChat) els.sendChat.disabled = disabled;
 }
 
+function focusChatInput() {
+  if (!els.chatInput) return;
+  window.requestAnimationFrame(() => {
+    if (!els.chatInput || els.chatInput.disabled) return;
+    els.chatInput.focus({ preventScroll: true });
+    els.chatInput.setSelectionRange(els.chatInput.value.length, els.chatInput.value.length);
+  });
+}
+
+function maybeCelebrateYatzy(previous, next) {
+  if (!previous || !next || previous.code !== next.code) return;
+  for (const nextPlayer of next.players || []) {
+    const previousPlayer = previous.players?.find((player) => player.seatId === nextPlayer.seatId);
+    for (const categoryId of YATZY_CATEGORY_IDS) {
+      const score = nextPlayer.scores?.[categoryId];
+      const previousScore = previousPlayer?.scores?.[categoryId];
+      const key = `${next.code}:${nextPlayer.seatId}:${categoryId}`;
+      if (Number(score) > 0 && previousScore !== score && !state.celebratedYatzies.has(key)) {
+        state.celebratedYatzies.add(key);
+        showYatzyCelebration(nextPlayer.name, score, categoryId === "maxiYatzy" ? "Maxiyatzy" : "Yatzy");
+        return;
+      }
+    }
+  }
+}
+
+function showYatzyCelebration(playerName, points, label) {
+  if (!els.celebrationLayer) {
+    showToast(`${label}! ${playerName} fikk ${points}.`);
+    playYatzySound();
+    return;
+  }
+
+  window.clearTimeout(state.celebrationTimer);
+  els.celebrationLayer.classList.remove("is-game-over");
+  els.celebrationLayer.setAttribute("aria-hidden", "false");
+  els.celebrationLayer.innerHTML = `
+    ${renderConfetti()}
+    <div class="celebration-banner">
+      <strong>${escapeHtml(label)}!</strong>
+      <span>${escapeHtml(playerName)} fikk ${points}</span>
+    </div>
+  `;
+  els.celebrationLayer.classList.add("is-visible");
+  playYatzySound();
+
+  state.celebrationTimer = window.setTimeout(() => {
+    hideYatzyCelebration();
+  }, 2800);
+}
+
+function hideYatzyCelebration() {
+  if (!els.celebrationLayer) return;
+  if (els.celebrationLayer.classList.contains("is-game-over")) return;
+  hideOverlay();
+}
+
+function hideOverlay() {
+  if (!els.celebrationLayer) return;
+  window.clearTimeout(state.celebrationTimer);
+  els.celebrationLayer.classList.remove("is-visible", "is-game-over");
+  els.celebrationLayer.setAttribute("aria-hidden", "true");
+  window.setTimeout(() => {
+    if (!els.celebrationLayer.classList.contains("is-visible")) {
+      els.celebrationLayer.innerHTML = "";
+    }
+  }, 260);
+}
+
+function renderConfetti() {
+  return Array.from({ length: 44 }, (_, index) => {
+    const color = CONFETTI_COLORS[index % CONFETTI_COLORS.length];
+    const left = Math.round(Math.random() * 100);
+    const drift = Math.round(Math.random() * 180 - 90);
+    const spin = Math.round(Math.random() * 720 - 360);
+    const delay = (Math.random() * 0.34).toFixed(2);
+    return `<i class="confetti-piece" style="--x:${left}vw;--drift:${drift}px;--spin:${spin}deg;--delay:${delay}s;--color:${color};"></i>`;
+  }).join("");
+}
+
+function renderGameOverOverlay() {
+  if (!els.celebrationLayer || !state.game) return;
+  if (state.game.status !== "finished") {
+    if (els.celebrationLayer.classList.contains("is-game-over")) hideOverlay();
+    return;
+  }
+
+  window.clearTimeout(state.celebrationTimer);
+  const winners = state.game.winners || [];
+  const winnerNames = winners.map((winner) => winner.name).join(", ");
+  const winnerTitle = winners.length > 1 ? "Uavgjort!" : `${winnerNames || "Vinneren"} vant!`;
+  const sortedPlayers = [...state.game.players].sort((a, b) => b.totals.total - a.totals.total);
+
+  els.celebrationLayer.innerHTML = `
+    <div class="game-over-dialog" role="dialog" aria-modal="true" aria-labelledby="gameOverTitle">
+      <p class="eyebrow">Ferdig ark</p>
+      <h2 id="gameOverTitle">${escapeHtml(winnerTitle)}</h2>
+      <div class="final-scoreboard">
+        ${sortedPlayers.map((player, index) => `
+          <div class="final-score-row ${winners.some((winner) => winner.seatId === player.seatId) ? "is-winner" : ""}">
+            <span>${index + 1}</span>
+            <strong>${escapeHtml(player.name)}</strong>
+            <b>${player.totals.total}</b>
+          </div>
+        `).join("")}
+      </div>
+      <button class="primary action-button" type="button" data-play-again ${state.pending ? "disabled" : ""}>Spill igjen</button>
+    </div>
+  `;
+  els.celebrationLayer.classList.add("is-visible", "is-game-over");
+  els.celebrationLayer.setAttribute("aria-hidden", "false");
+}
+
 function renderChatMessage(entry) {
   const mine = entry.seatId === state.seatId ? "is-mine" : "";
   return `
@@ -1126,6 +1415,16 @@ if (els.soundToggle) {
     if (state.soundEnabled) playStartSound();
   });
 }
+if (els.celebrationLayer) {
+  els.celebrationLayer.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-play-again]");
+    if (!button) return;
+    action("restart");
+  });
+}
+document.addEventListener("pointerdown", () => ensureAudioContext(), { once: true });
+document.addEventListener("keydown", () => ensureAudioContext(), { once: true });
+document.addEventListener("keydown", handleRollShortcut);
 if (els.chatForm) {
   els.chatForm.addEventListener("submit", async (event) => {
     event.preventDefault();

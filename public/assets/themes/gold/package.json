@@ -1,0 +1,7 @@
+{
+  "name": "@yatzy/theme-gold",
+  "private": true,
+  "description": "Gold dice skin for Yatzy",
+  "version": "0.1.0",
+  "files": ["*"]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "@yatzy/theme-lavender",
+  "private": true,
+  "description": "Lavender dice skin for Yatzy",
+  "version": "0.1.0",
+  "files": ["*"]
+}

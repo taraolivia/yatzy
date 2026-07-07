@@ -41,7 +41,7 @@ const MAXI_LOWER_CATEGORIES = [
 const RULESETS = {
   normal: {
     id: "normal",
-    name: "Norsk Yatzy",
+    name: "Yatzy",
     diceCount: 5,
     baseRolls: 3,
     upperBonusThreshold: 63,

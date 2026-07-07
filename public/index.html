@@ -34,7 +34,7 @@
                   <span></span><span></span><span></span><span></span><span></span>
                 </span>
                 <span class="mode-copy">
-                  <strong>Norsk Yatzy</strong>
+                  <strong>Yatzy</strong>
                   <small>5 terninger</small>
                 </span>
               </label>
@@ -112,43 +112,61 @@
               <div class="play-tools">
                 <fieldset class="dice-customizer" id="diceCustomizer">
                   <legend>Terninger</legend>
-                  <button class="theme-button" type="button" data-dice-theme="default">
+                  <button class="theme-button" type="button" data-dice-theme="default" aria-label="Default terninger" title="Default terninger">
                     <span class="swatch default"></span>
-                    <span>Default</span>
                   </button>
-                  <button class="theme-button" type="button" data-dice-theme="wooden">
+                  <button class="theme-button" type="button" data-dice-theme="wooden" aria-label="Treterninger" title="Treterninger">
                     <span class="swatch wooden"></span>
-                    <span>Wood</span>
                   </button>
-                  <button class="theme-button" type="button" data-dice-theme="blueGreenMetal">
+                  <button class="theme-button" type="button" data-dice-theme="blueGreenMetal" aria-label="Blå metallterninger" title="Blå metallterninger">
                     <span class="swatch blueGreenMetal"></span>
-                    <span>Blue metal</span>
                   </button>
-                  <button class="theme-button" type="button" data-dice-theme="rock">
+                  <button class="theme-button" type="button" data-dice-theme="rock" aria-label="Steinterninger" title="Steinterninger">
                     <span class="swatch rock"></span>
-                    <span>Rock</span>
                   </button>
-                  <button class="theme-button" type="button" data-dice-theme="smooth">
+                  <button class="theme-button" type="button" data-dice-theme="smooth" aria-label="Glatte terninger" title="Glatte terninger">
                     <span class="swatch smooth"></span>
-                    <span>Smooth</span>
                   </button>
-                  <button class="theme-button" type="button" data-dice-theme="smooth-pip">
+                  <button class="theme-button" type="button" data-dice-theme="smooth-pip" aria-label="Glatte prikkterninger" title="Glatte prikkterninger">
                     <span class="swatch smooth-pip"></span>
-                    <span>Smooth pip</span>
+                  </button>
+                  <button class="theme-button" type="button" data-dice-theme="lavender" aria-label="Lavendel-lilla terninger" title="Lavendel-lilla terninger">
+                    <span class="swatch lavender"></span>
+                  </button>
+                  <button class="theme-button" type="button" data-dice-theme="gold" aria-label="Gullterninger" title="Gullterninger">
+                    <span class="swatch gold"></span>
+                  </button>
+                  <button class="theme-button" type="button" data-dice-theme="glitter" aria-label="Glitterterninger" title="Glitterterninger">
+                    <span class="swatch glitter"></span>
+                  </button>
+                  <button class="theme-button" type="button" data-dice-theme="yellow" aria-label="Gule terninger" title="Gule terninger">
+                    <span class="swatch yellow"></span>
                   </button>
                 </fieldset>
 
-                <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="true">Lyd p&aring;</button>
+                <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="true" aria-label="Lyd p&aring;" title="Lyd p&aring;">
+                  <span aria-hidden="true">&#128266;</span>
+                </button>
               </div>
             </div>
 
           </section>
 
           <section class="score-wrap panel">
+            <div class="score-last-move is-empty" id="scoreLastMove" aria-live="polite"></div>
             <table class="score-table" id="scoreTable"></table>
           </section>
 
           <aside class="panel room-flow-panel">
+            <section class="compact-section chat-section">
+              <h3>Chat</h3>
+              <div class="chat-list" id="chatList" aria-live="polite"></div>
+              <form class="chat-form" id="chatForm">
+                <input id="chatInput" name="message" autocomplete="off" maxlength="160" placeholder="Skriv noe...">
+                <button class="primary small" id="sendChat" type="submit">Send</button>
+              </form>
+            </section>
+
             <div class="room-strip">
               <div class="room-summary">
                 <p class="eyebrow">Rom</p>
@@ -171,14 +189,6 @@
                 <h3>Spillere</h3>
                 <div class="players-list" id="playersList"></div>
               </section>
-              <section class="compact-section chat-section">
-                <h3>Chat</h3>
-                <div class="chat-list" id="chatList" aria-live="polite"></div>
-                <form class="chat-form" id="chatForm">
-                  <input id="chatInput" name="message" autocomplete="off" maxlength="160" placeholder="Skriv noe...">
-                  <button class="primary small" id="sendChat" type="submit">Send</button>
-                </form>
-              </section>
               <section class="compact-section flow-section">
                 <h3>Flyt</h3>
                 <ol class="game-log" id="gameLog"></ol>
@@ -189,7 +199,8 @@
       </main>
     </div>
 
+    <div class="celebration-layer" id="celebrationLayer" aria-hidden="true"></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js?v=20260707-smooth-pip-dpip" defer></script>
+    <script src="/app.js?v=20260707-oak-cute-dice" defer></script>
   </body>
 </html>

@@ -1,3 +1,11 @@
+@font-face {
+  font-display: swap;
+  font-family: "MyCustomFont";
+  font-style: normal;
+  font-weight: 400;
+  src: url("./assets/fonts/Tara-Regular.ttf") format("truetype");
+}
+
 :root {
   color-scheme: light;
   --paper: #fffefa;
@@ -17,7 +25,10 @@
   --die-pip: #17211d;
   --die-held-bg: #e9f8f1;
   --die-held-border: #1d8a70;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-size-min: max(0.75rem, 12px);
+  --font-handwritten: "MyCustomFont", "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
 }
 
 body[data-dice-theme="wooden"] {
@@ -45,11 +56,11 @@ body[data-dice-theme="rock"] {
 }
 
 body[data-dice-theme="smooth"] {
-  --die-bg: #fffefa;
+  --die-bg: #c993c8;
   --die-border: #d7d0c3;
   --die-pip: #17211d;
   --die-held-bg: #f0f7f2;
-  --die-held-border: #1d8a70;
+  --die-held-border: #c57bc4;
 }
 
 body[data-dice-theme="smooth-pip"] {
@@ -58,6 +69,45 @@ body[data-dice-theme="smooth-pip"] {
   --die-pip: #17211d;
   --die-held-bg: #f0f7f2;
   --die-held-border: #1d8a70;
+}
+
+body[data-dice-theme="lavender"] {
+  --die-bg: #c7a7ff;
+  --die-border: #8f6ad6;
+  --die-pip: #191919;
+  --die-held-bg: #eadfff;
+  --die-held-border: #8f6ad6;
+}
+
+body[data-dice-theme="gold"] {
+  --die-bg: linear-gradient(145deg, #fff1a8 0%, #f1bb45 46%, #b67818 100%);
+  --die-border: #9f6616;
+  --die-pip: #4b2c08;
+  --die-held-bg: linear-gradient(145deg, #fff7c7 0%, #f4c85b 54%, #c7831e 100%);
+  --die-held-border: #9f6616;
+}
+
+body[data-dice-theme="glitter"] {
+  --die-bg:
+    radial-gradient(circle at 24% 28%, rgba(255, 255, 255, 0.98) 0 4%, transparent 5%),
+    radial-gradient(circle at 70% 20%, rgba(255, 255, 255, 0.86) 0 3%, transparent 4%),
+    radial-gradient(circle at 76% 72%, rgba(255, 255, 255, 0.82) 0 3%, transparent 4%),
+    linear-gradient(145deg, #fff7c7 0%, #f8d66d 42%, #d69828 100%);
+  --die-border: #b8781d;
+  --die-pip: #4c2b08;
+  --die-held-bg:
+    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.98) 0 4%, transparent 5%),
+    radial-gradient(circle at 66% 70%, rgba(255, 255, 255, 0.82) 0 3%, transparent 4%),
+    linear-gradient(145deg, #fffbe0 0%, #f9dc7a 48%, #d99a2d 100%);
+  --die-held-border: #b8781d;
+}
+
+body[data-dice-theme="yellow"] {
+  --die-bg: #fff9c7;
+  --die-border: #d19a1f;
+  --die-pip: #5b3508;
+  --die-held-bg: #fff2a6;
+  --die-held-border: #d19a1f;
 }
 
 * {
@@ -73,6 +123,7 @@ body {
 body {
   background: linear-gradient(180deg, #f5faf6 0%, #edf3f6 100%);
   color: var(--ink);
+  font-family: var(--font-ui);
 }
 
 button,
@@ -149,7 +200,7 @@ main {
 
 .eyebrow {
   color: var(--green-dark);
-  font-size: 0.75rem;
+  font-size: var(--font-size-min);
   font-weight: 850;
   letter-spacing: 0;
   margin: 0 0 7px;
@@ -291,7 +342,7 @@ input {
   background: var(--coral);
   border-radius: 999px;
   color: #ffffff;
-  font-size: 0.68rem;
+  font-size: var(--font-size-min);
   font-weight: 950;
   padding: 5px 7px;
   position: absolute;
@@ -375,9 +426,8 @@ input {
 }
 
 .room-flow-panel {
-  display: grid;
   gap: 10px;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
   min-height: 0;
 }
 
@@ -427,7 +477,7 @@ input {
 }
 
 .code-button span:last-child {
-  font-size: 0.74rem;
+  font-size: var(--font-size-min);
 }
 
 .small {
@@ -452,10 +502,9 @@ input {
   gap: 12px;
   grid-template-areas:
     "players"
-    "chat"
     "flow";
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(100px, 1fr) minmax(0, 50px);
+  grid-template-rows: auto minmax(118px, 154px);
   min-height: 0;
   overflow: hidden;
 }
@@ -471,7 +520,7 @@ input {
 
 .flow-section {
   grid-area: flow;
-  max-height: 50px;
+  min-height: 118px;
   overflow: hidden;
 }
 
@@ -484,7 +533,7 @@ input {
 
 .compact-section h3 {
   color: var(--green-dark);
-  font-size: 0.72rem;
+  font-size: var(--font-size-min);
   font-weight: 950;
   letter-spacing: 0;
   margin: 0;
@@ -510,9 +559,9 @@ input {
 }
 
 .player-item.is-current {
-  border-color: var(--green);
-  box-shadow: inset 4px 0 0 var(--green);
-  background-color: #3a7a6064;
+  background: #fff7d8;
+  border-color: #e5bc35;
+  box-shadow: inset 4px 0 0 var(--gold);
 }
 
 .avatar {
@@ -536,23 +585,25 @@ input {
 
 .player-meta {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--font-size-min);
 }
 
 .flow-section .game-log,
 .chat-list {
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
 }
 
 .chat-section {
-  min-height: 100px;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: 200px;
+  min-height: 132px;
+  overflow: hidden;
 }
 
 .chat-list {
-  align-content: end;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
@@ -569,7 +620,7 @@ input {
 
 .chat-message strong {
   color: var(--green-dark);
-  font-size: 0.7rem;
+  font-size: var(--font-size-min);
   line-height: 1;
 }
 
@@ -608,13 +659,32 @@ input {
 
 .turn-bar {
   align-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
   display: flex;
   gap: 18px;
   justify-content: space-between;
+  margin: -6px -6px 0;
+  padding: 6px;
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .turn-bar h1 {
   font-size: clamp(1.65rem, 4vw, 3.1rem);
+}
+
+.game-layout.is-my-turn .turn-bar {
+  background: #fff7d8;
+  border-color: #e5bc35;
+  box-shadow: 0 0 0 4px rgba(244, 191, 63, 0.18);
+}
+
+.game-layout.is-my-turn #turnEyebrow {
+  color: #8a6200;
+}
+
+.game-layout.is-my-turn .roll-button:not(:disabled) {
+  box-shadow: 0 0 0 4px rgba(244, 191, 63, 0.22);
 }
 
 .dice-zone {
@@ -627,18 +697,21 @@ input {
 
 .dice-table {
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 22% 78%, rgba(255, 255, 255, 0.08)),
-    linear-gradient(135deg, #2f7058 0%, #245744 100%);
-  border: 8px solid #d8bf74;
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 18% 82%, rgba(255, 255, 255, 0.12)),
+    repeating-linear-gradient(9deg, rgba(83, 48, 20, 0.16) 0 2px, rgba(255, 235, 190, 0.08) 2px 9px, rgba(111, 66, 27, 0.12) 9px 14px),
+    linear-gradient(135deg, #c98e4a 0%, #a9652d 48%, #7a421f 100%);
+  border: 8px solid #8a542c;
   border-radius: 8px;
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.18),
-    inset 0 22px 70px rgba(9, 45, 32, 0.25),
-    0 18px 36px rgba(25, 39, 32, 0.2);
+    inset 0 22px 70px rgba(82, 45, 19, 0.22),
+    0 18px 36px rgba(72, 47, 25, 0.22);
   display: grid;
   gap: 12px;
+  grid-template-areas:
+    "felt saved";
   grid-template-columns: minmax(0, 1fr) minmax(132px, 170px);
-  min-height: 268px;
+  min-height: 388px;
   padding: 12px;
 }
 
@@ -654,21 +727,26 @@ input {
 
 .felt-area {
   background:
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, rgba(255, 255, 255, 0) 2px 9px),
-    rgba(9, 50, 36, 0.2);
-  grid-template-rows: auto minmax(190px, 1fr) auto;
+    radial-gradient(circle at 20% 15%, rgba(255, 245, 220, 0.18), transparent 30%),
+    repeating-linear-gradient(92deg, rgba(80, 45, 18, 0.12) 0 1px, transparent 1px 8px, rgba(255, 239, 202, 0.12) 8px 12px),
+    linear-gradient(135deg, rgba(202, 142, 74, 0.62), rgba(139, 79, 35, 0.58));
+  grid-area: felt;
+  grid-template-rows: auto minmax(250px, 1fr) auto;
   overflow: hidden;
   position: relative;
 }
 
 .saved-area {
-  background: rgba(255, 248, 220, 0.18);
-  border: 1px dashed rgba(255, 248, 220, 0.58);
+  background:
+    linear-gradient(145deg, rgba(255, 247, 224, 0.34), rgba(198, 131, 55, 0.18)),
+    rgba(121, 68, 30, 0.2);
+  border: 1px dashed rgba(255, 236, 190, 0.72);
+  grid-area: saved;
 }
 
 .table-label {
   align-items: center;
-  color: #f7fff9;
+  color: #fff4d7;
   display: flex;
   font-size: 0.78rem;
   font-weight: 920;
@@ -683,15 +761,15 @@ input {
 }
 
 .table-label span:last-child {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(84, 45, 18, 0.22);
   border-radius: 999px;
   padding: 3px 7px;
 }
 
 .dice-3d-stage {
   border-radius: 8px;
-  display: block;
-  min-height: 280px;
+  display: none;
+  min-height: 250px;
   opacity: 0;
   overflow: hidden;
   pointer-events: none;
@@ -708,11 +786,8 @@ input {
 }
 
 .dice-table.has-3d-roll .dice-3d-stage {
+  display: block;
   opacity: 1;
-}
-
-.dice-table.is-3d-roll-visual .active-dice {
-  display: none;
 }
 
 .dice-row {
@@ -721,15 +796,36 @@ input {
 }
 
 .active-dice {
-  align-content: center;
-  grid-template-columns: repeat(auto-fit, minmax(70px, 92px));
+  align-content: end;
+  grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 92px));
   justify-content: center;
+}
+
+.dice-table.has-3d-roll .active-dice {
+  grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 58px));
 }
 
 .held-dice {
   align-content: start;
-  grid-template-columns: repeat(auto-fit, minmax(56px, 70px));
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 54px));
   justify-content: center;
+}
+
+.dice-slot {
+  aspect-ratio: 1;
+  display: grid;
+  min-width: 0;
+}
+
+.dice-slot.is-empty {
+  pointer-events: none;
+}
+
+.dice-slot > .die,
+.dice-slot > .die-ghost {
+  height: 100%;
+  width: 100%;
 }
 
 .die {
@@ -772,29 +868,11 @@ input {
 }
 
 .die.is-saved {
-  animation: saved-pop 240ms ease-out;
   box-shadow:
     inset 0 -6px 0 rgba(23, 33, 29, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
     0 0 0 4px rgba(255, 248, 220, 0.22),
     0 12px 24px rgba(15, 42, 31, 0.2);
-}
-
-.die.is-saved::after {
-  background: var(--die-held-border);
-  border-radius: 999px;
-  bottom: -7px;
-  color: #ffffff;
-  content: "SPART";
-  font-size: 0.55rem;
-  font-weight: 950;
-  left: 50%;
-  letter-spacing: 0;
-  line-height: 1;
-  padding: 4px 6px;
-  position: absolute;
-  transform: translateX(-50%);
-  white-space: nowrap;
 }
 
 .die.is-empty {
@@ -853,16 +931,16 @@ input {
 
 .die-ghost {
   aspect-ratio: 1;
-  border: 2px dashed rgba(255, 248, 220, 0.38);
+  border: 2px dashed rgba(255, 238, 198, 0.48);
   border-radius: 8px;
   display: block;
 }
 
 .empty-felt {
   align-items: center;
-  border: 2px dashed rgba(255, 248, 220, 0.35);
+  border: 2px dashed rgba(255, 238, 198, 0.48);
   border-radius: 8px;
-  color: rgba(247, 255, 249, 0.78);
+  color: rgba(255, 244, 215, 0.86);
   display: flex;
   font-size: 0.9rem;
   font-weight: 850;
@@ -878,7 +956,23 @@ input {
   border-radius: 50%;
   height: min(12px, 42%);
   justify-self: center;
+  position: relative;
   width: min(12px, 42%);
+  z-index: 1;
+}
+
+body[data-dice-theme="glitter"] .die::after {
+  background:
+    linear-gradient(45deg, transparent 0 46%, rgba(255, 255, 255, 0.9) 48% 52%, transparent 54%),
+    linear-gradient(-45deg, transparent 0 46%, rgba(255, 255, 255, 0.72) 48% 52%, transparent 54%);
+  border-radius: inherit;
+  content: "";
+  height: 18%;
+  left: 20%;
+  pointer-events: none;
+  position: absolute;
+  top: 16%;
+  width: 18%;
 }
 
 .pip.is-on {
@@ -906,7 +1000,7 @@ input {
   border-top: 1px solid var(--line);
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(0, 1fr) 110px;
+  grid-template-columns: minmax(0, 1fr) auto;
   margin-top: 18px;
   padding-top: 16px;
 }
@@ -915,14 +1009,16 @@ input {
   border: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
   padding: 0;
 }
 
 .dice-customizer legend {
-  flex-basis: 100%;
-  margin-bottom: 2px;
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
 }
 
 .theme-button,
@@ -935,9 +1031,10 @@ input {
   display: inline-flex;
   font-size: 0.88rem;
   font-weight: 820;
-  gap: 7px;
-  min-height: 38px;
-  padding: 8px 10px;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
 }
 
 .theme-button.is-active,
@@ -951,8 +1048,8 @@ input {
   border: 1px solid rgba(23, 33, 29, 0.18);
   border-radius: 50%;
   display: inline-block;
-  height: 18px;
-  width: 18px;
+  height: 16px;
+  width: 16px;
 }
 
 .swatch.default {
@@ -981,6 +1078,25 @@ input {
     #ffffff;
 }
 
+.swatch.lavender {
+  background: #c7a7ff;
+}
+
+.swatch.gold {
+  background: linear-gradient(145deg, #fff1a8, #f1bb45 50%, #9f6616);
+}
+
+.swatch.glitter {
+  background:
+    radial-gradient(circle at 28% 24%, #ffffff 0 10%, transparent 11%),
+    radial-gradient(circle at 72% 68%, #ffffff 0 9%, transparent 10%),
+    linear-gradient(145deg, #fff7c7, #f8d66d 50%, #b8781d);
+}
+
+.swatch.yellow {
+  background: #ffe46b;
+}
+
 .score-wrap {
   background: #ffffff;
   border-color: #d8d8d8;
@@ -996,7 +1112,7 @@ input {
   border: 2px solid #363636;
   border-collapse: collapse;
   color: #333333;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui);
   min-width: 0;
   table-layout: fixed;
   width: 100%;
@@ -1008,10 +1124,12 @@ input {
   border-bottom: 0;
   caption-side: top;
   color: #333333;
+  display: block;
   overflow: hidden;
-  padding: 4px 50px 5px;
+  padding: 5px 50px 6px;
   position: relative;
   text-align: center;
+  width: 100%;
 }
 
 .score-table caption::before,
@@ -1022,7 +1140,7 @@ input {
   color: #ffffff;
   content: "♕";
   display: flex;
-  font-size: 0.58rem;
+  font-size: var(--font-size-min);
   font-weight: 950;
   height: 22px;
   justify-content: center;
@@ -1043,19 +1161,39 @@ input {
 
 .score-brand {
   display: block;
+  font-family: var(--font-handwritten);
   font-size: clamp(1.45rem, 2.3vw, 1.95rem);
-  font-weight: 900;
+  font-weight: 400;
   line-height: 1;
-  text-transform: uppercase;
+}
+
+.score-last-move {
+  background: #fff7d8;
+  border: 1px solid #e5bc35;
+  border-radius: 6px;
+  color: #6c5300;
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0 0 6px;
+  overflow: hidden;
+  padding: 5px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score-last-move.is-empty {
+  display: none;
 }
 
 .score-table th,
 .score-table td {
   background: #ffffff;
   border: 1px solid #5e5e5e;
-  font-size: 0.9rem;
-  height: 25px;
-  padding: 1px 5px;
+  font-size: 1.05rem;
+  height: 29px;
+  padding: 2px 5px;
   text-align: right;
   vertical-align: middle;
   white-space: nowrap;
@@ -1081,15 +1219,15 @@ input {
 
 .score-table td:first-child {
   background: #ffffff;
-  font-size: 0.92rem;
+  font-size: 1.05rem;
   font-weight: 500;
 }
 
 .score-table thead th {
   background: #ffffff;
   color: #333333;
-  font-size: 0.82rem;
-  height: 22px;
+  font-size: 0.92rem;
+  height: 24px;
   padding: 0;
   text-align: center;
   text-transform: uppercase;
@@ -1098,15 +1236,15 @@ input {
 .score-player-initial {
   color: #17211d;
   display: block;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 0.84rem;
-  font-weight: 900;
+  font-family: var(--font-handwritten);
+  font-size: 0.96rem;
+  font-weight: 400;
   line-height: 1;
 }
 
 .score-table thead th.is-current-player,
 .score-player-cell.is-current-player {
-  background: #ffffff;
+  background: #fff7d8;
 }
 
 .score-table thead th.is-me,
@@ -1127,15 +1265,24 @@ input {
 }
 
 .score-line-label {
-  display: inline-block;
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   width: 100%;
 }
 
+.score-die-icon {
+  color: #222222;
+  flex: 0 0 auto;
+  font-size: 1.08em;
+  line-height: 1;
+}
+
 .score-line-label small {
-  font-size: 0.56rem;
+  font-size: var(--font-size-min);
   font-weight: 700;
   margin-left: 6px;
 }
@@ -1150,6 +1297,10 @@ input {
   background: #f5fcf8;
 }
 
+.score-player-cell.is-score-choice.is-current-player {
+  background: #fff2b8;
+}
+
 .grand-total td {
   background: #ffffff !important;
   border-top-width: 2px;
@@ -1158,14 +1309,19 @@ input {
   font-weight: 600;
 }
 
+.score-table .total-row td.is-current-player,
+.score-table .grand-total td.is-current-player {
+  background: #fff7d8 !important;
+}
+
 .score-button {
   background: #e9f8f1;
   border: 1px solid #1d8a70;
   border-radius: 4px;
   color: #116452;
-  font-family: "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
-  font-size: 1.08rem;
-  font-weight: 800;
+  font-family: var(--font-handwritten);
+  font-size: 1.18rem;
+  font-weight: 400;
   min-height: 20px;
   min-width: 0;
   padding: 0 2px;
@@ -1194,17 +1350,17 @@ input {
 .score-value {
   color: #111111;
   display: inline-block;
-  font-family: "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
-  font-size: 1.08rem;
-  font-weight: 850;
+  font-family: var(--font-handwritten);
+  font-size: 1.18rem;
+  font-weight: 400;
   min-width: 24px;
   text-align: center;
 }
 
 .summary-value {
   color: #111111;
-  font-family: "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
-  font-weight: 850;
+  font-family: var(--font-handwritten);
+  font-weight: 400;
 }
 
 .score-value.is-struck {
@@ -1266,6 +1422,181 @@ input {
 .toast.is-visible {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+.celebration-layer {
+  align-items: center;
+  display: grid;
+  inset: 0;
+  justify-items: center;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: fixed;
+  transition: opacity 160ms ease;
+  z-index: 20;
+}
+
+.celebration-layer.is-visible {
+  opacity: 1;
+}
+
+.celebration-layer.is-game-over {
+  background: rgba(23, 33, 29, 0.28);
+  pointer-events: auto;
+}
+
+.celebration-banner {
+  background: rgba(255, 254, 250, 0.96);
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  box-shadow: 0 22px 70px rgba(23, 33, 29, 0.24);
+  color: var(--ink);
+  display: grid;
+  gap: 6px;
+  min-width: min(360px, calc(100vw - 36px));
+  padding: 22px 26px;
+  text-align: center;
+  transform: scale(0.92);
+}
+
+.celebration-layer.is-visible .celebration-banner {
+  animation: celebration-pop 620ms cubic-bezier(0.16, 0.9, 0.26, 1.12) forwards;
+}
+
+.celebration-banner strong {
+  color: #8a6200;
+  font-size: clamp(2.2rem, 8vw, 4.2rem);
+  font-weight: 950;
+  line-height: 0.92;
+}
+
+.celebration-banner span {
+  color: var(--green-dark);
+  font-size: 1.05rem;
+  font-weight: 850;
+}
+
+.game-over-dialog {
+  background: rgba(255, 254, 250, 0.98);
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  box-shadow: 0 26px 80px rgba(23, 33, 29, 0.26);
+  display: grid;
+  gap: 14px;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 22px;
+  width: 100%;
+}
+
+.game-over-dialog h2 {
+  color: var(--ink);
+  font-size: clamp(2rem, 7vw, 3.2rem);
+}
+
+.final-scoreboard {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  overflow: hidden;
+}
+
+.final-score-row {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+.final-score-row:last-child {
+  border-bottom: 0;
+}
+
+.final-score-row.is-winner {
+  background: #fff7d8;
+}
+
+.final-score-row span {
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.final-score-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.final-score-row b {
+  color: var(--green-dark);
+  font-size: 1.25rem;
+}
+
+.brand,
+.setup h1,
+.setup h2,
+.mode-copy strong,
+.mode-badge,
+.action-button,
+.panel-heading h2,
+.room-title-row h2,
+.status-pill,
+.avatar,
+.turn-bar h1,
+.table-label,
+.roll-button,
+.score-brand,
+.score-player-initial,
+.score-button,
+.score-value,
+.summary-value,
+.celebration-banner strong,
+.game-over-dialog h2,
+.final-score-row b {
+  font-family: var(--font-handwritten);
+  font-weight: 400;
+}
+
+.confetti-piece {
+  animation: confetti-fall 2300ms cubic-bezier(0.18, 0.72, 0.34, 1) var(--delay) forwards;
+  background: var(--color);
+  border-radius: 2px;
+  height: 16px;
+  left: var(--x);
+  position: absolute;
+  top: -24px;
+  transform: translateY(0) rotate(0deg);
+  width: 9px;
+}
+
+@keyframes celebration-pop {
+  0% {
+    transform: scale(0.88) translateY(10px);
+  }
+  58% {
+    transform: scale(1.04) translateY(0);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), 108vh) rotate(var(--spin));
+  }
 }
 
 @media (max-width: 1100px) {
@@ -1360,7 +1691,7 @@ input {
   }
 
   body.in-game .player-meta {
-    font-size: 0.74rem;
+    font-size: var(--font-size-min);
   }
 
   body.in-game .code-button {
@@ -1405,8 +1736,10 @@ input {
   body.in-game .dice-table {
     border-width: 6px;
     gap: 8px;
+    grid-template-areas:
+      "felt saved";
     grid-template-columns: minmax(0, 1fr) minmax(110px, 140px);
-    min-height: 180px;
+    min-height: 392px;
     padding: 8px;
   }
 
@@ -1416,12 +1749,16 @@ input {
     padding: 7px;
   }
 
+  body.in-game .felt-area {
+    grid-template-rows: auto minmax(258px, 1fr) auto;
+  }
+
   body.in-game .dice-3d-stage {
-    min-height: 190px;
+    min-height: 258px;
   }
 
   body.in-game .table-label {
-    font-size: 0.68rem;
+    font-size: var(--font-size-min);
   }
 
   body.in-game .dice-row {
@@ -1429,23 +1766,21 @@ input {
   }
 
   body.in-game .active-dice {
-    grid-template-columns: repeat(auto-fit, minmax(52px, 66px));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 72px));
+  }
+
+  body.in-game .dice-table.has-3d-roll .active-dice {
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 54px));
   }
 
   body.in-game .held-dice {
-    grid-template-columns: repeat(auto-fit, minmax(42px, 54px));
+    grid-template-columns: repeat(2, minmax(0, 48px));
   }
 
   body.in-game .die {
     border-radius: 7px;
     gap: 3px;
     padding: 12%;
-  }
-
-  body.in-game .die.is-saved::after {
-    bottom: -5px;
-    font-size: 0.46rem;
-    padding: 3px 5px;
   }
 
   body.in-game .pip {
@@ -1473,7 +1808,7 @@ input {
 
   body.in-game .play-tools {
     gap: 9px;
-    grid-template-columns: minmax(0, 1fr) 92px;
+    grid-template-columns: minmax(0, 1fr) auto;
     margin-top: 10px;
     padding-top: 9px;
   }
@@ -1489,8 +1824,9 @@ input {
   body.in-game .theme-button,
   body.in-game .sound-toggle {
     font-size: 0.76rem;
-    min-height: 31px;
-    padding: 6px 8px;
+    height: 30px;
+    padding: 0;
+    width: 30px;
   }
 
   body.in-game .swatch {
@@ -1511,11 +1847,17 @@ input {
     padding: 4px 38px 5px;
   }
 
+  body.in-game .score-last-move {
+    font-size: var(--font-size-min);
+    margin-bottom: 5px;
+    padding: 4px 7px;
+  }
+
   body.in-game .score-table th,
   body.in-game .score-table td {
-    font-size: 0.84rem;
-    height: 24px;
-    padding: 1px 4px;
+    font-size: 1rem;
+    height: 27px;
+    padding: 2px 4px;
   }
 
   body.in-game .score-table thead th {
@@ -1528,13 +1870,13 @@ input {
   }
 
   body.in-game .score-button {
-    font-size: 1rem;
+    font-size: 1.12rem;
     min-height: 20px;
     padding: 0 2px;
   }
 
   body.in-game .score-value {
-    font-size: 1.04rem;
+    font-size: 1.12rem;
   }
 
   body.in-game .game-log {
@@ -1580,6 +1922,7 @@ input {
 
   body.in-game .room-flow-panel {
     gap: 8px;
+    grid-template-rows: minmax(132px, 200px) auto minmax(0, 1fr);
   }
 
   body.in-game .room-strip {
@@ -1593,7 +1936,7 @@ input {
   }
 
   body.in-game .status-pill {
-    font-size: 0.72rem;
+    font-size: var(--font-size-min);
     padding: 5px 8px;
   }
 
@@ -1613,27 +1956,27 @@ input {
   }
 
   body.in-game .code-button span:last-child {
-    font-size: 0.66rem;
+    font-size: var(--font-size-min);
   }
 
   body.in-game .room-flow-grid {
     gap: 10px;
     grid-template-areas:
       "players"
-      "chat"
       "flow";
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(100px, 1fr) minmax(0, 50px);
+    grid-template-rows: minmax(0, 1fr) minmax(118px, 154px);
     min-height: 0;
     overflow: hidden;
   }
 
   body.in-game .chat-section {
-    min-height: 100px;
+    max-height: 200px;
+    min-height: 132px;
   }
 
   body.in-game .flow-section {
-    max-height: 50px;
+    min-height: 118px;
   }
 
   body.in-game .compact-section {
@@ -1642,7 +1985,7 @@ input {
   }
 
   body.in-game .compact-section h3 {
-    font-size: 0.68rem;
+    font-size: var(--font-size-min);
   }
 
   body.in-game .players-list,
@@ -1653,11 +1996,11 @@ input {
   }
 
   body.in-game .chat-message strong {
-    font-size: 0.66rem;
+    font-size: var(--font-size-min);
   }
 
   body.in-game .chat-message span {
-    font-size: 0.72rem;
+    font-size: var(--font-size-min);
     padding: 5px 7px;
   }
 
@@ -1679,12 +2022,18 @@ input {
   }
 
   body.in-game .dice-table {
+    grid-template-areas:
+      "felt saved";
     grid-template-columns: minmax(0, 1fr) minmax(92px, 118px);
-    min-height: 390px;
+    min-height: 424px;
+  }
+
+  body.in-game .felt-area {
+    grid-template-rows: auto minmax(294px, 1fr) auto;
   }
 
   body.in-game .dice-3d-stage {
-    min-height: 320px;
+    min-height: 294px;
   }
 
   body.in-game .roll-box {
@@ -1698,14 +2047,16 @@ input {
 
   body.in-game .play-tools {
     gap: 8px;
-    grid-template-columns: minmax(0, 1fr) 86px;
+    grid-template-columns: minmax(0, 1fr) auto;
     margin-top: 9px;
     padding-top: 8px;
   }
 
   body.in-game .theme-button,
   body.in-game .sound-toggle {
-    font-size: 0.72rem;
+    font-size: var(--font-size-min);
+    height: 30px;
+    width: 30px;
   }
 
   body.in-game .score-table {
@@ -1716,9 +2067,15 @@ input {
     padding: 5px 44px 4px;
   }
 
+  body.in-game .score-last-move {
+    font-size: var(--font-size-min);
+    margin-bottom: 5px;
+    padding: 4px 7px;
+  }
+
   body.in-game .score-table caption::before,
   body.in-game .score-table caption::after {
-    font-size: 0.62rem;
+    font-size: var(--font-size-min);
     height: 22px;
     width: 22px;
   }
@@ -1737,10 +2094,10 @@ input {
 
   body.in-game .score-table th,
   body.in-game .score-table td {
-    font-size: 0.84rem;
-    height: 24px;
+    font-size: 1rem;
+    height: 27px;
     line-height: 1;
-    padding: 1px 4px;
+    padding: 2px 4px;
   }
 
   body.in-game .score-table thead th {
@@ -1753,13 +2110,13 @@ input {
   }
 
   body.in-game .score-button {
-    font-size: 1.02rem;
+    font-size: 1.14rem;
     min-height: 20px;
     padding: 0 2px;
   }
 
   body.in-game .score-value {
-    font-size: 1.04rem;
+    font-size: 1.14rem;
     min-width: 22px;
   }
 }
@@ -1770,19 +2127,27 @@ input {
   }
 
   body.in-game .dice-table {
-    min-height: 382px;
+    min-height: 374px;
+  }
+
+  body.in-game .felt-area {
+    grid-template-rows: auto minmax(230px, 1fr) auto;
   }
 
   body.in-game .dice-3d-stage {
-    min-height: 310px;
+    min-height: 230px;
   }
 
   body.in-game .active-dice {
-    grid-template-columns: repeat(auto-fit, minmax(48px, 58px));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 58px));
+  }
+
+  body.in-game .dice-table.has-3d-roll .active-dice {
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 48px));
   }
 
   body.in-game .held-dice {
-    grid-template-columns: repeat(auto-fit, minmax(38px, 48px));
+    grid-template-columns: repeat(2, minmax(0, 44px));
   }
 
   body.in-game .turn-bar h1 {
@@ -1791,20 +2156,20 @@ input {
 
   body.in-game .score-table th,
   body.in-game .score-table td {
-    font-size: 0.78rem;
-    height: 21px;
-    padding: 1px 3px;
+    font-size: 0.96rem;
+    height: 25px;
+    padding: 2px 3px;
   }
 
   body.in-game .score-button {
-    font-size: 0.94rem;
+    font-size: 1.06rem;
     min-height: 18px;
     padding: 0 2px;
   }
 
   body.in-game .game-log li,
   body.in-game .chat-message span {
-    font-size: 0.7rem;
+    font-size: var(--font-size-min);
   }
 }
 
@@ -1815,6 +2180,21 @@ input {
   .dice-zone,
   .dice-table {
     grid-template-columns: 1fr;
+  }
+
+  .dice-table {
+    grid-template-areas:
+      "felt"
+      "saved";
+    grid-template-rows: auto auto;
+  }
+
+  .felt-area {
+    grid-template-rows: auto minmax(218px, 1fr) auto;
+  }
+
+  .dice-3d-stage {
+    min-height: 218px;
   }
 
   .play-column {
@@ -1829,9 +2209,36 @@ input {
   .room-flow-grid {
     grid-template-areas:
       "players"
-      "chat"
       "flow";
-    grid-template-rows: auto minmax(100px, auto) minmax(0, 50px);
+    grid-template-rows: auto minmax(118px, 154px);
+  }
+
+  .chat-section {
+    max-height: 200px;
+  }
+
+  .score-table th,
+  .score-table td {
+    font-size: 1.08rem;
+    height: 31px;
+  }
+
+  .score-table td:first-child {
+    font-size: 1.08rem;
+  }
+
+  .score-table thead th,
+  .score-player-initial {
+    font-size: 1rem;
+  }
+
+  .score-button,
+  .score-value {
+    font-size: 1.28rem;
+  }
+
+  .score-last-move {
+    font-size: 0.82rem;
   }
 
   .setup-panel {
@@ -1858,7 +2265,7 @@ input {
   }
 
   .held-dice {
-    grid-template-columns: repeat(6, minmax(42px, 58px));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(42px, 58px));
   }
 
   .roll-box {

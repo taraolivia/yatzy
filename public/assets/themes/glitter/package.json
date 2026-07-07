@@ -1,0 +1,7 @@
+{
+  "name": "@yatzy/theme-glitter",
+  "private": true,
+  "description": "Glitter dice skin for Yatzy",
+  "version": "0.1.0",
+  "files": ["*"]
+}
