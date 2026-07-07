@@ -1,0 +1,19 @@
+{
+  "name": "online-yatzy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Realtime Norwegian Yatzy and Maxi Yatzy for private rooms.",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@3d-dice/dice-box": "^1.1.4",
+    "@3d-dice/dice-themes": "^0.2.1"
+  }
+}

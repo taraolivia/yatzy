@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Online Yatzy</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <a class="brand" href="/">Online Yatzy</a>
+        <div class="connection" id="connection">Klar</div>
+      </header>
+
+      <main>
+        <section class="setup" id="setupView">
+          <form class="panel setup-panel" id="createForm">
+            <div>
+              <p class="eyebrow">Nytt rom</p>
+              <h1>Start et Yatzy-bord</h1>
+            </div>
+
+            <label class="field">
+              <span>Navnet ditt</span>
+              <input id="createName" name="name" autocomplete="name" maxlength="28" required>
+            </label>
+
+            <fieldset class="mode-picker">
+              <legend>Variant</legend>
+              <label class="mode-card">
+                <input type="radio" name="mode" value="normal" checked>
+                <span class="mode-art mode-art-normal" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </span>
+                <span class="mode-copy">
+                  <strong>Norsk Yatzy</strong>
+                  <small>5 terninger</small>
+                </span>
+              </label>
+              <label class="mode-card mode-card-maxi">
+                <input type="radio" name="mode" value="maxi">
+                <span class="mode-art mode-art-maxi" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span><span></span><span></span>
+                </span>
+                <span class="mode-copy">
+                  <strong>Maxi Yatzy</strong>
+                  <small>6 terninger</small>
+                </span>
+                <span class="mode-badge">MAXI</span>
+              </label>
+            </fieldset>
+
+            <button class="primary action-button" type="submit">Lag rom</button>
+          </form>
+
+          <form class="panel setup-panel" id="joinForm">
+            <div>
+              <p class="eyebrow">Bli med</p>
+              <h2>G&aring; inn i et rom</h2>
+            </div>
+
+            <label class="field">
+              <span>Romkode</span>
+              <input id="roomCode" name="code" inputmode="latin-prose" maxlength="5" required>
+            </label>
+
+            <label class="field">
+              <span>Navnet ditt</span>
+              <input id="joinName" name="name" autocomplete="name" maxlength="28" required>
+            </label>
+
+            <button class="secondary action-button" type="submit">Bli med</button>
+          </form>
+        </section>
+
+        <section class="game-layout is-hidden" id="gameView">
+          <section class="play-column">
+            <div class="panel table-panel">
+              <div class="turn-bar">
+                <div>
+                  <p class="eyebrow" id="turnEyebrow">Venter</p>
+                  <h1 id="turnTitle">Lobby</h1>
+                </div>
+                <button class="primary action-button" id="startGame" type="button">Start spill</button>
+              </div>
+
+              <div class="dice-zone">
+                <div class="dice-table" id="diceTable">
+                  <div class="felt-area">
+                    <div class="table-label">
+                      <span>Kastefelt</span>
+                      <span id="activeDiceLabel">0</span>
+                    </div>
+                    <div class="dice-3d-stage" id="dice3dStage" aria-hidden="true"></div>
+                    <div class="dice-row active-dice" id="activeDiceRow"></div>
+                  </div>
+                  <div class="saved-area">
+                    <div class="table-label">
+                      <span>Spart</span>
+                      <span id="heldDiceLabel">0</span>
+                    </div>
+                    <div class="dice-row held-dice" id="heldDiceRow"></div>
+                  </div>
+                </div>
+                <div class="roll-box">
+                  <button class="primary roll-button" id="rollDice" type="button">Kast</button>
+                  <div class="roll-meta" id="rollMeta">0 kast brukt</div>
+                </div>
+              </div>
+
+              <div class="play-tools">
+                <fieldset class="dice-customizer" id="diceCustomizer">
+                  <legend>Terninger</legend>
+                  <button class="theme-button" type="button" data-dice-theme="default">
+                    <span class="swatch default"></span>
+                    <span>Default</span>
+                  </button>
+                  <button class="theme-button" type="button" data-dice-theme="wooden">
+                    <span class="swatch wooden"></span>
+                    <span>Wood</span>
+                  </button>
+                  <button class="theme-button" type="button" data-dice-theme="blueGreenMetal">
+                    <span class="swatch blueGreenMetal"></span>
+                    <span>Blue metal</span>
+                  </button>
+                  <button class="theme-button" type="button" data-dice-theme="rock">
+                    <span class="swatch rock"></span>
+                    <span>Rock</span>
+                  </button>
+                  <button class="theme-button" type="button" data-dice-theme="smooth">
+                    <span class="swatch smooth"></span>
+                    <span>Smooth</span>
+                  </button>
+                  <button class="theme-button" type="button" data-dice-theme="smooth-pip">
+                    <span class="swatch smooth-pip"></span>
+                    <span>Smooth pip</span>
+                  </button>
+                </fieldset>
+
+                <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="true">Lyd p&aring;</button>
+              </div>
+            </div>
+
+          </section>
+
+          <section class="score-wrap panel">
+            <table class="score-table" id="scoreTable"></table>
+          </section>
+
+          <aside class="panel room-flow-panel">
+            <div class="room-strip">
+              <div class="room-summary">
+                <p class="eyebrow">Rom</p>
+                <div class="room-title-row">
+                  <h2 id="roomTitle">Yatzy</h2>
+                  <div class="status-pill" id="gameStatus">Lobby</div>
+                </div>
+              </div>
+              <div class="room-actions">
+                <button class="code-button" id="copyLink" type="button">
+                  <span id="roomCodeLabel">-----</span>
+                  <span>Kopier link</span>
+                </button>
+                <button class="secondary small" id="leaveRoom" type="button">G&aring; ut</button>
+              </div>
+            </div>
+
+            <div class="room-flow-grid">
+              <section class="compact-section players-section">
+                <h3>Spillere</h3>
+                <div class="players-list" id="playersList"></div>
+              </section>
+              <section class="compact-section chat-section">
+                <h3>Chat</h3>
+                <div class="chat-list" id="chatList" aria-live="polite"></div>
+                <form class="chat-form" id="chatForm">
+                  <input id="chatInput" name="message" autocomplete="off" maxlength="160" placeholder="Skriv noe...">
+                  <button class="primary small" id="sendChat" type="submit">Send</button>
+                </form>
+              </section>
+              <section class="compact-section flow-section">
+                <h3>Flyt</h3>
+                <ol class="game-log" id="gameLog"></ol>
+              </section>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js?v=20260707-smooth-pip-dpip" defer></script>
+  </body>
+</html>
