@@ -31,8 +31,8 @@ const MAXI_LOWER_CATEGORIES = [
   { id: "smallStraight", label: "Liten straight", section: "lower" },
   { id: "largeStraight", label: "Stor straight", section: "lower" },
   { id: "fullStraight", label: "Full straight", section: "lower" },
-  { id: "fullHouse", label: "Hus", section: "lower" },
   { id: "villa", label: "Hytte", section: "lower" },
+  { id: "fullHouse", label: "Hus", section: "lower" },
   { id: "tower", label: "T\u00e5rn", section: "lower" },
   { id: "chance", label: "Sjanse", section: "lower" },
   { id: "maxiYatzy", label: "Maxi Yatzy", section: "lower" }
@@ -165,6 +165,12 @@ function scoreTripletAndPair(dice) {
   return best;
 }
 
+function scoreNormalHouse(dice) {
+  if (dice.length !== 5) return 0;
+  const counts = [...countsFor(dice).values()].filter(Boolean).sort((a, b) => b - a);
+  return counts.length === 2 && counts[0] === 3 && counts[1] === 2 ? sum(dice) : 0;
+}
+
 function scoreTwoTriples(dice) {
   const counts = countsFor(dice);
   const triples = [];
@@ -220,7 +226,7 @@ function scoreCategory(mode, categoryId, dice, ruleSettings = null) {
     case "fullStraight":
       return hasFaces(dice, [1, 2, 3, 4, 5, 6]) ? settings.fullStraightScore : 0;
     case "fullHouse":
-      return mode === "maxi" ? scoreTwoTriples(dice) : scoreTripletAndPair(dice);
+      return mode === "maxi" ? scoreTwoTriples(dice) : scoreNormalHouse(dice);
     case "villa":
       return scoreTripletAndPair(dice);
     case "tower":

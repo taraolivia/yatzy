@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   calculateTotals,
   createEmptyScores,
+  getRules,
   normalizeRuleSettings,
   isForcedYatzyRound,
   nextOpenCategory,
@@ -27,6 +28,7 @@ test("scores Norwegian Yatzy straights and yatzy", () => {
   assert.equal(scoreCategory("normal", "largeStraight", [2, 3, 4, 5, 6]), 20);
   assert.equal(scoreCategory("normal", "yatzy", [4, 4, 4, 4, 4]), 50);
   assert.equal(scoreCategory("normal", "fullHouse", [4, 4, 4, 4, 4]), 0);
+  assert.equal(scoreCategory("normal", "fullHouse", [6, 6, 6, 5, 4]), 0);
 });
 
 test("scores Maxi Yatzy categories", () => {
@@ -38,6 +40,14 @@ test("scores Maxi Yatzy categories", () => {
   assert.equal(scoreCategory("maxi", "villa", [6, 6, 6, 4, 4, 1]), 26);
   assert.equal(scoreCategory("maxi", "tower", [4, 4, 4, 4, 2, 2]), 20);
   assert.equal(scoreCategory("maxi", "maxiYatzy", [1, 1, 1, 1, 1, 1]), 100);
+});
+
+test("lists Maxi Hytte before Hus", () => {
+  const lowerIds = getRules("maxi").categories
+    .filter((category) => category.section === "lower")
+    .map((category) => category.id);
+
+  assert.ok(lowerIds.indexOf("villa") < lowerIds.indexOf("fullHouse"));
 });
 
 test("uses custom room rule settings for scoring and bonus", () => {

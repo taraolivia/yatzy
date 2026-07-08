@@ -57,6 +57,8 @@ const state = {
   events: null,
   pending: false,
   chatPending: false,
+  pendingIncomingGame: null,
+  incomingRollFinishing: false,
   toastTimer: null,
   celebrationTimer: null,
   celebratedYatzies: new Set(),
@@ -94,7 +96,8 @@ const DICE_3D_ASSET_PATH = "/assets/";
 const DICE_3D_MIN_ROLL_MS = 980;
 const DICE_3D_START_TIMEOUT_MS = 8000;
 const DICE_3D_ROLL_TIMEOUT_MS = 16000;
-const DICE_3D_SETTLE_PAD_MS = 450;
+const DICE_3D_SETTLE_PAD_MS = 750;
+const ROLL_RESULT_HOLD_MS = 700;
 const DICE_3D_PHYSICS = {
   gravity: 2,
   mass: 1,
@@ -102,10 +105,10 @@ const DICE_3D_PHYSICS = {
   restitution: 0,
   angularDamping: 0.2,
   linearDamping: 0.4,
-  spinForce: 6,
+  spinForce: 4.5,
   throwForce: 5,
   startingHeight: 8,
-  settleTimeout: 5000,
+  settleTimeout: 9000,
   delay: 100,
   scale: 10
 };
@@ -331,19 +334,52 @@ function connectEvents(code) {
   state.events.addEventListener("open", () => setConnection("Live"));
   state.events.addEventListener("state", (event) => {
     const nextGame = JSON.parse(event.data);
-    const previousGame = state.game;
-    const shouldAnimate = shouldAnimateIncomingRoll(previousGame, nextGame);
-    maybeCelebrateYatzy(previousGame, nextGame);
-    setConnection("Live");
-    if (shouldAnimate) {
-      void animateIncomingRoll(previousGame, nextGame);
-      return;
-    }
-    cancelIncomingRollAnimation();
-    state.game = nextGame;
-    render();
+    receiveGameState(nextGame);
   });
   state.events.addEventListener("error", () => setConnection("Kobler til igjen"));
+}
+
+function receiveGameState(nextGame) {
+  setConnection("Live");
+  if (shouldQueueIncomingGame(nextGame)) {
+    queueIncomingGame(nextGame);
+    return;
+  }
+  applyIncomingGame(nextGame);
+}
+
+function shouldQueueIncomingGame(nextGame) {
+  if (!state.game || state.game.code !== nextGame.code) return false;
+  return (state.rollContext === "incoming" && state.isRolling) || state.incomingRollFinishing;
+}
+
+function queueIncomingGame(nextGame) {
+  if (!state.pendingIncomingGame || nextGame.version >= state.pendingIncomingGame.version) {
+    state.pendingIncomingGame = nextGame;
+  }
+}
+
+function takeQueuedIncomingGame(afterVersion) {
+  const queuedGame = state.pendingIncomingGame;
+  if (!queuedGame) return null;
+  state.pendingIncomingGame = null;
+  return queuedGame.version > afterVersion ? queuedGame : null;
+}
+
+function applyIncomingGame(nextGame) {
+  const previousGame = state.game;
+  if (previousGame && previousGame.code === nextGame.code && nextGame.version < previousGame.version) return;
+
+  const shouldAnimate = shouldAnimateIncomingRoll(previousGame, nextGame);
+  maybeCelebrateYatzy(previousGame, nextGame);
+  if (shouldAnimate) {
+    void animateIncomingRoll(previousGame, nextGame);
+    return;
+  }
+
+  cancelIncomingRollAnimation();
+  state.game = nextGame;
+  render();
 }
 
 function leaveRoom() {
@@ -351,6 +387,8 @@ function leaveRoom() {
   state.game = null;
   state.playerToken = null;
   state.seatId = null;
+  state.pendingIncomingGame = null;
+  state.incomingRollFinishing = false;
   state.celebratedYatzies.clear();
   state.rulesPanelOpen = false;
   hideOverlay();
@@ -447,7 +485,11 @@ function setDice3dVisible(visible) {
 }
 
 function shouldUseDice3dVisual() {
-  return Boolean(state.isRolling && els.dice3dStage && !state.dice3d.failed && !prefersReducedMotion());
+  return Boolean(state.rollContext === "local" && state.isRolling && els.dice3dStage && !state.dice3d.failed && !prefersReducedMotion());
+}
+
+function shouldShow2dRollAnimation() {
+  return Boolean(state.isRolling && !shouldUseDice3dVisual());
 }
 
 function activeRollCount() {
@@ -658,10 +700,16 @@ function startRollAnimation(animationGame = state.game, { context = "local" } = 
   state.animatedDice = currentDice.map((value, index) => (held[index] ? value : randomDie()));
   state.isRolling = true;
   renderDice();
-  state.dice3d.startPromise = startDice3dRoll().then((didStart) => {
-    if (isCurrentRollAnimation(animationId)) renderDice();
-    return didStart;
-  });
+  if (context === "local") {
+    state.dice3d.startPromise = startDice3dRoll().then((didStart) => {
+      if (isCurrentRollAnimation(animationId)) renderDice();
+      return didStart;
+    });
+  } else {
+    state.dice3d.startPromise = null;
+    setDice3dVisible(false);
+    clearDice3dInstance();
+  }
   state.rollTimer = window.setInterval(() => {
     if (!isCurrentRollAnimation(animationId)) return;
     state.animatedDice = state.animatedDice.map((value, index) => (held[index] ? value : randomDie()));
@@ -689,7 +737,7 @@ function cancelIncomingRollAnimation() {
 }
 
 function shouldAnimateIncomingRoll(previous, next) {
-  if (!previous || state.pending || state.isRolling) return false;
+  if (!previous || state.pending || state.isRolling || state.incomingRollFinishing) return false;
   if (next.status !== "playing" || !next.dice.length || next.rollsUsed <= 0) return false;
   if (previous.currentSeatId !== next.currentSeatId) return false;
   return previous.dice.join(",") !== next.dice.join(",") && next.rollsUsed >= previous.rollsUsed;
@@ -703,10 +751,41 @@ async function animateIncomingRoll(previousGame, nextGame) {
   playRollSound(0.55);
   await waitForRollVisual(startedAt);
   if (!isCurrentRollAnimation(animationId)) return;
+  state.incomingRollFinishing = true;
   stopRollAnimation(animationId);
-  if (state.game && state.game.version > nextGame.version) return;
-  state.game = nextGame;
-  render();
+  try {
+    if (state.game && state.game.version > nextGame.version) return;
+    state.game = nextGame;
+    render();
+    await flushQueuedIncomingGame(nextGame);
+  } finally {
+    state.incomingRollFinishing = false;
+  }
+}
+
+async function flushQueuedIncomingGame(displayedGame) {
+  const queuedGame = takeQueuedIncomingGame(displayedGame.version);
+  if (!queuedGame) return;
+
+  if (shouldHoldRollResult(displayedGame, queuedGame)) {
+    await wait(ROLL_RESULT_HOLD_MS);
+  }
+
+  state.incomingRollFinishing = false;
+  applyIncomingGame(queuedGame);
+
+  while (!state.isRolling) {
+    const nextQueuedGame = takeQueuedIncomingGame(state.game?.version ?? queuedGame.version);
+    if (!nextQueuedGame) return;
+    applyIncomingGame(nextQueuedGame);
+  }
+}
+
+function shouldHoldRollResult(displayedGame, queuedGame) {
+  return Boolean(
+    displayedGame.dice.length
+    && (!queuedGame.dice.length || queuedGame.currentSeatId !== displayedGame.currentSeatId)
+  );
 }
 
 function ensureAudioContext() {
@@ -1003,16 +1082,12 @@ function renderPlayers() {
   const game = state.game;
   els.playersList.innerHTML = game.players
     .map((player) => {
-      const host = player.isHost ? "vert" : "spiller";
-      const turn = player.seatId === game.currentSeatId ? "tur" : host;
       const mine = player.seatId === state.seatId ? " deg" : "";
-      const saved = game.canSaveRolls ? `, ${savedRollText(player.savedRolls)}` : "";
       return `
         <div class="player-item ${player.seatId === game.currentSeatId ? "is-current" : ""}">
           <div class="avatar">${escapeHtml(initials(player.name))}</div>
           <div>
             <div class="player-name">${escapeHtml(player.name)}${mine ? `<span class="player-meta">${mine}</span>` : ""}</div>
-            <div class="player-meta">${turn} &middot; ${player.totals.total} poeng &middot; ${player.totals.remaining} igjen${saved}</div>
           </div>
         </div>
       `;
@@ -1131,7 +1206,7 @@ function renderDieButton(entry, canHold, lane) {
   const held = entry.held ? "is-held" : "";
   const saved = lane === "held" && !state.isRolling ? "is-saved" : "";
   const empty = entry.value ? "" : "is-empty";
-  const rolling = state.isRolling && !entry.held && !shouldUseDice3dVisual() ? "is-rolling" : "";
+  const rolling = shouldShow2dRollAnimation() && !entry.held ? "is-rolling" : "";
   const disabled = canHold && !state.isRolling ? "" : "disabled";
   const motion = throwStyle(entry.index);
   const value = entry.value ? `, verdi ${entry.value}` : "";
@@ -1378,12 +1453,14 @@ function categoryIconHtml(category) {
 function latestMoveMessage(game) {
   const log = game?.log || [];
   const latestMove = log.find((entry) => (
-    entry.message.includes("kastet")
-    || entry.message.includes("skrev")
-    || entry.message.includes("sparte")
-    || entry.message.includes("slapp")
+    !isHoldLogMessage(entry.message)
+    && (entry.message.includes("kastet") || entry.message.includes("skrev"))
   ));
   return latestMove?.message || "";
+}
+
+function isHoldLogMessage(message) {
+  return message.includes("sparte") || message.includes("slapp");
 }
 
 function classicCategoryLabel(category) {
@@ -1452,7 +1529,7 @@ function scoreCell(player, category) {
 }
 
 function renderLog() {
-  const log = state.game.log || [];
+  const log = (state.game.log || []).filter((entry) => !isHoldLogMessage(entry.message));
   els.gameLog.innerHTML = log.length
     ? log.map((entry) => `<li>${escapeHtml(entry.message)}</li>`).join("")
     : "<li>Ingen trekk enn&aring;.</li>";

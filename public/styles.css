@@ -427,8 +427,9 @@ input {
 }
 
 .room-flow-panel {
+  display: grid;
   gap: 10px;
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -500,28 +501,18 @@ input {
 
 .room-flow-grid {
   display: grid;
-  gap: 12px;
-  grid-template-areas:
-    "players"
-    "flow";
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(118px, 154px);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
 }
 
 .players-section {
-  grid-area: players;
   min-height: 0;
 }
 
-.chat-section {
-  grid-area: chat;
-}
-
 .flow-section {
-  grid-area: flow;
-  min-height: 118px;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -544,7 +535,7 @@ input {
 .players-list {
   display: grid;
   align-content: start;
-  gap: 7px;
+  gap: 5px;
   min-height: 0;
   overflow: auto;
 }
@@ -554,9 +545,10 @@ input {
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
-  gap: 2px 10px;
-  grid-template-columns: 32px minmax(0, 1fr);
-  padding: 7px;
+  gap: 8px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  min-height: 34px;
+  padding: 5px 6px;
 }
 
 .player-item.is-current {
@@ -571,10 +563,11 @@ input {
   border-radius: 8px;
   color: #ffffff;
   display: flex;
+  font-size: 0.82rem;
   font-weight: 950;
-  height: 32px;
+  height: 24px;
   justify-content: center;
-  width: 32px;
+  width: 24px;
 }
 
 .player-name {
@@ -954,6 +947,11 @@ input {
 
 .dice-table.has-3d-roll .active-dice {
   grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 58px));
+}
+
+.dice-table.is-3d-roll-visual .active-dice {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .held-dice {
@@ -1984,18 +1982,18 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .players-list {
-    gap: 7px;
+    gap: 5px;
   }
 
   body.in-game .player-item {
-    grid-template-columns: 32px minmax(0, 1fr);
-    padding: 7px;
+    grid-template-columns: 24px minmax(0, 1fr);
+    padding: 5px 6px;
   }
 
   body.in-game .avatar {
     border-radius: 7px;
-    height: 32px;
-    width: 32px;
+    height: 24px;
+    width: 24px;
   }
 
   body.in-game .player-meta {
@@ -2282,12 +2280,8 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .room-flow-grid {
-    gap: 10px;
-    grid-template-areas:
-      "players"
-      "flow";
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(118px, 154px);
+    grid-template-rows: minmax(0, 1fr);
     min-height: 0;
     overflow: hidden;
   }
@@ -2298,7 +2292,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .flow-section {
-    min-height: 118px;
+    min-height: 0;
   }
 
   body.in-game .compact-section {
@@ -2522,10 +2516,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   .room-flow-grid {
-    grid-template-areas:
-      "players"
-      "flow";
-    grid-template-rows: auto minmax(118px, 154px);
+    grid-template-rows: minmax(118px, 154px);
   }
 
   .chat-section {
