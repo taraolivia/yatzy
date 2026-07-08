@@ -113,7 +113,6 @@ const ROLL_RESULT_HOLD_MS = 700;
 const DICE_3D_PHYSICS = {
   gravity: 2,
   mass: 1,
-  size: 8.5,
   friction: 0.8,
   restitution: 0.1,
   angularDamping: 0.2,
@@ -123,7 +122,7 @@ const DICE_3D_PHYSICS = {
   startingHeight: 8,
   settleTimeout: 9000,
   delay: 100,
-  scale: 10
+  scale: 9
 };
 const DICE_3D_THEME_COLORS = {
   default: "#f8f3e6",
@@ -473,9 +472,11 @@ function prepareDice3d() {
       state.dice3d.instance = diceBox;
       return diceBox.init();
     })
-    .then(() => {
+    .then(async () => {
       state.dice3d.ready = true;
-      syncDice3dTheme();
+      bindDice3dContextFallback();
+      await synchronizeDice3dSize();
+      await syncDice3dTheme();
     })
     .catch((error) => {
       console.warn("3D dice disabled:", error);
@@ -490,17 +491,25 @@ function prepareDice3d() {
 }
 
 function canUseDice3d() {
-  return Boolean(els.dice3dStage && state.dice3d.instance && state.dice3d.ready && !state.dice3d.failed && !prefersReducedMotion());
+  const canvas = els.dice3dStage?.querySelector("canvas");
+  return Boolean(
+    canvas
+    && canvas.clientWidth > 1
+    && canvas.clientHeight > 1
+    && state.dice3d.instance
+    && state.dice3d.ready
+    && !state.dice3d.failed
+    && !prefersReducedMotion()
+  );
 }
 
 function setDice3dVisible(visible) {
   state.dice3d.visible = visible;
   if (els.diceTable) els.diceTable.classList.toggle("has-3d-roll", visible);
-  if (visible) state.dice3d.instance?.resizeWorld?.();
 }
 
 function shouldUseDice3dVisual() {
-  return Boolean(state.rollContext === "local" && state.isRolling && els.dice3dStage && !state.dice3d.failed && !prefersReducedMotion());
+  return Boolean(state.rollContext === "local" && state.isRolling && state.dice3d.visible && canUseDice3d());
 }
 
 function shouldShow2dRollAnimation() {
@@ -525,6 +534,36 @@ function dice3dConfig(theme = currentDiceTheme()) {
   };
 }
 
+async function synchronizeDice3dSize() {
+  // Dice-box registers its actual resize work on the window event; resizeWorld()
+  // only adds another listener, so dispatch once after the responsive layout settles.
+  await nextAnimationFrame();
+  if (!state.dice3d.ready || !state.dice3d.visible || !dice3dCanvasHasSize()) return;
+  window.dispatchEvent(new Event("resize"));
+  await nextAnimationFrame();
+  await nextAnimationFrame();
+}
+
+function dice3dCanvasHasSize() {
+  const canvas = els.dice3dStage?.querySelector("canvas");
+  return Boolean(canvas && canvas.clientWidth > 1 && canvas.clientHeight > 1);
+}
+
+function nextAnimationFrame() {
+  return new Promise((resolve) => window.requestAnimationFrame(resolve));
+}
+
+function bindDice3dContextFallback() {
+  const canvas = els.dice3dStage?.querySelector("canvas");
+  if (!canvas || canvas.dataset.contextFallbackBound) return;
+  canvas.dataset.contextFallbackBound = "true";
+  canvas.addEventListener("webglcontextlost", () => {
+    state.dice3d.failed = true;
+    setDice3dVisible(false);
+    if (state.game) renderDice();
+  }, { once: true });
+}
+
 async function startDice3dRoll() {
   const rollId = state.dice3d.rollId;
   clearStaticDice3d();
@@ -533,6 +572,8 @@ async function startDice3dRoll() {
   if (rollId !== state.dice3d.rollId) return false;
   if (!state.isRolling) return false;
   if (!canUseDice3d()) return false;
+  await synchronizeDice3dSize();
+  if (rollId !== state.dice3d.rollId || !state.isRolling || !canUseDice3d()) return false;
 
   const count = activeRollCount();
   if (!count) return false;
