@@ -85,12 +85,24 @@ const state = {
   soundEnabled: loadSoundEnabled(),
   audioContext: null,
   rollAudio: null,
-  rollAudioFailed: false
+  rollAudioFailed: false,
+  effectAudio: new Map(),
+  failedEffectAudio: new Set(),
+  soundedPlayers: new Set(),
+  soundedScores: new Set()
 };
 
 const DICE_THEMES = new Set(["default", "wooden", "blueGreenMetal", "rock", "smooth", "smooth-pip", "lavender", "gold", "glitter", "yellow"]);
 const ROLL_ANIMATION_MS = 650;
 const ROLL_SOUND_PATH = "/assets/sounds/dice-roll.mp3";
+const SOUND_PATHS = {
+  click: "/assets/sounds/click.mp3",
+  join: "/assets/sounds/someone-joins-room.mp3",
+  write: "/assets/sounds/write-numbers.mp3",
+  crossOut: "/assets/sounds/cross-out.mp3",
+  crossOutYatzy: "/assets/sounds/someone-crosses-out-yatzy.mp3",
+  yatzy: "/assets/sounds/yatzy-yippee.mp3"
+};
 const DICE_3D_MODULE_PATH = "/vendor/dice-box/dice-box.es.min.js";
 const DICE_3D_ASSET_PATH = "/assets/";
 const DICE_3D_MIN_ROLL_MS = 980;
@@ -101,8 +113,9 @@ const ROLL_RESULT_HOLD_MS = 700;
 const DICE_3D_PHYSICS = {
   gravity: 2,
   mass: 1,
+  size: 8.5,
   friction: 0.8,
-  restitution: 0,
+  restitution: 0.1,
   angularDamping: 0.2,
   linearDamping: 0.4,
   spinForce: 4.5,
@@ -253,8 +266,6 @@ async function action(name, extra = {}) {
   if (isRoll) {
     rollAnimationId = startRollAnimation(state.game, { context: "local" });
     playRollSound();
-  } else if (name === "hold") {
-    playClickSound();
   } else if (name === "settings") {
     state.game = { ...state.game, ...extra };
   }
@@ -277,13 +288,14 @@ async function action(name, extra = {}) {
       stopRollAnimation(rollAnimationId);
       state.game = payload.game;
     } else if (name === "score") {
+      playGameTransitionSounds(previousGame, payload.game);
       maybeCelebrateYatzy(previousGame, payload.game);
       state.game = payload.game;
-      playScoreSound();
     } else if (name === "start") {
       state.game = payload.game;
       playStartSound();
     } else if (name === "restart") {
+      playGameTransitionSounds(previousGame, payload.game);
       state.game = payload.game;
       hideOverlay();
       playStartSound();
@@ -371,6 +383,7 @@ function applyIncomingGame(nextGame) {
   if (previousGame && previousGame.code === nextGame.code && nextGame.version < previousGame.version) return;
 
   const shouldAnimate = shouldAnimateIncomingRoll(previousGame, nextGame);
+  playGameTransitionSounds(previousGame, nextGame);
   maybeCelebrateYatzy(previousGame, nextGame);
   if (shouldAnimate) {
     void animateIncomingRoll(previousGame, nextGame);
@@ -390,6 +403,8 @@ function leaveRoom() {
   state.pendingIncomingGame = null;
   state.incomingRollFinishing = false;
   state.celebratedYatzies.clear();
+  state.soundedPlayers.clear();
+  state.soundedScores.clear();
   state.rulesPanelOpen = false;
   hideOverlay();
   const url = new URL(window.location.href);
@@ -808,6 +823,43 @@ function ensureRollAudio() {
   return state.rollAudio;
 }
 
+function preloadEffectAudio() {
+  Object.keys(SOUND_PATHS).forEach((name) => ensureEffectAudio(name));
+}
+
+function ensureEffectAudio(name) {
+  if (state.effectAudio.has(name) || state.failedEffectAudio.has(name) || !window.Audio) {
+    return state.effectAudio.get(name) || null;
+  }
+
+  const path = SOUND_PATHS[name];
+  if (!path) return null;
+  const audio = new Audio(path);
+  audio.preload = "auto";
+  audio.addEventListener("error", () => {
+    state.failedEffectAudio.add(name);
+    state.effectAudio.delete(name);
+  }, { once: true });
+  state.effectAudio.set(name, audio);
+  return audio;
+}
+
+function playEffectSound(name, volume = 1) {
+  if (!state.soundEnabled) return;
+  const template = ensureEffectAudio(name);
+  if (!template || state.failedEffectAudio.has(name)) return;
+
+  const audio = template.paused || template.ended ? template : template.cloneNode(true);
+  audio.currentTime = 0;
+  audio.volume = Math.max(0, Math.min(1, volume));
+  const playback = audio.play();
+  if (playback?.catch) {
+    playback.catch((error) => {
+      if (error?.name !== "NotAllowedError") state.failedEffectAudio.add(name);
+    });
+  }
+}
+
 function playRollSound(volume = 1) {
   if (!state.soundEnabled) return;
   const rollAudio = ensureRollAudio();
@@ -869,12 +921,7 @@ function playNoiseBurst(audio, delay, duration, volume) {
 }
 
 function playClickSound() {
-  playTone(360, 0.055, 0.08, 0, "sine");
-}
-
-function playScoreSound() {
-  playTone(520, 0.07, 0.09, 0, "sine");
-  playTone(780, 0.08, 0.08, 0.075, "sine");
+  playEffectSound("click", 0.72);
 }
 
 function playStartSound() {
@@ -883,10 +930,7 @@ function playStartSound() {
 }
 
 function playYatzySound() {
-  [523, 659, 784, 1047].forEach((note, index) => {
-    playTone(note, 0.13, 0.09, index * 0.075, "triangle");
-  });
-  playTone(1319, 0.2, 0.075, 0.34, "sine");
+  playEffectSound("yatzy");
 }
 
 function playTone(frequency, duration, volume, delay = 0, type = "sine") {
@@ -1557,6 +1601,40 @@ function focusChatInput() {
   });
 }
 
+function playGameTransitionSounds(previous, next) {
+  if (!previous || !next || previous.code !== next.code) return;
+  if (previous.status === "finished" && next.status === "playing") {
+    state.soundedScores.clear();
+    state.celebratedYatzies.clear();
+    return;
+  }
+
+  for (const nextPlayer of next.players || []) {
+    const previousPlayer = previous.players?.find((player) => player.seatId === nextPlayer.seatId);
+    if (!previousPlayer) {
+      const joinKey = `${next.code}:${nextPlayer.seatId}`;
+      if (nextPlayer.seatId !== state.seatId && !state.soundedPlayers.has(joinKey)) {
+        state.soundedPlayers.add(joinKey);
+        playEffectSound("join");
+      }
+      continue;
+    }
+
+    for (const [categoryId, score] of Object.entries(nextPlayer.scores || {})) {
+      if (score === null || previousPlayer.scores?.[categoryId] === score) continue;
+      const scoreKey = `${next.code}:${nextPlayer.seatId}:${categoryId}`;
+      if (state.soundedScores.has(scoreKey)) continue;
+      state.soundedScores.add(scoreKey);
+
+      if (YATZY_CATEGORY_IDS.has(categoryId)) {
+        if (Number(score) === 0) playEffectSound("crossOutYatzy");
+        continue;
+      }
+      playEffectSound(Number(score) === 0 ? "crossOut" : "write");
+    }
+  }
+}
+
 function maybeCelebrateYatzy(previous, next) {
   if (!previous || !next || previous.code !== next.code) return;
   for (const nextPlayer of next.players || []) {
@@ -1694,6 +1772,15 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function handleGlobalClickSound(event) {
+  if (!(event.target instanceof Element)) return;
+  const control = event.target.closest(
+    "button, a[href], select, summary, [role='button'], input[type='button'], input[type='submit'], input[type='reset'], input[type='checkbox'], input[type='radio']"
+  );
+  if (!control || control.matches(":disabled, [aria-disabled='true']")) return;
+  playClickSound();
+}
+
 els.createForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
@@ -1717,7 +1804,6 @@ els.startGame.addEventListener("click", () => action("start"));
 if (els.rulesToggle) {
   els.rulesToggle.addEventListener("click", () => {
     state.rulesPanelOpen = !state.rulesPanelOpen;
-    playClickSound();
     render();
   });
 }
@@ -1737,7 +1823,6 @@ if (els.diceCustomizer) {
     const button = event.target.closest("[data-dice-theme]");
     if (!button) return;
     applyDiceTheme(button.dataset.diceTheme);
-    playClickSound();
   });
 }
 if (els.soundToggle) {
@@ -1745,7 +1830,6 @@ if (els.soundToggle) {
     state.soundEnabled = !state.soundEnabled;
     saveSoundEnabled(state.soundEnabled);
     renderSoundToggle();
-    if (state.soundEnabled) playStartSound();
   });
 }
 if (els.celebrationLayer) {
@@ -1758,6 +1842,7 @@ if (els.celebrationLayer) {
 document.addEventListener("pointerdown", () => ensureAudioContext(), { once: true });
 document.addEventListener("keydown", () => ensureAudioContext(), { once: true });
 document.addEventListener("keydown", handleRollShortcut);
+document.addEventListener("click", handleGlobalClickSound);
 if (els.chatForm) {
   els.chatForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1780,6 +1865,7 @@ els.roomCode.addEventListener("input", () => {
 });
 
 async function boot() {
+  preloadEffectAudio();
   applyDiceTheme(loadDiceTheme());
   renderSoundToggle();
   const params = new URLSearchParams(window.location.search);

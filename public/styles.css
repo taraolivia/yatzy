@@ -842,7 +842,6 @@ input {
     linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 18% 82%, rgba(255, 255, 255, 0.12)),
     repeating-linear-gradient(9deg, rgba(83, 48, 20, 0.16) 0 2px, rgba(255, 235, 190, 0.08) 2px 9px, rgba(111, 66, 27, 0.12) 9px 14px),
     linear-gradient(135deg, #c98e4a 0%, #a9652d 48%, #7a421f 100%);
-  border: 8px solid #8a542c;
   border-radius: 8px;
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.18),
@@ -851,8 +850,10 @@ input {
   display: grid;
   gap: 12px;
   grid-template-areas:
-    "felt saved";
-  grid-template-columns: minmax(0, 1fr) minmax(132px, 170px);
+    "felt"
+    "saved";
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   min-height: 388px;
   padding: 12px;
 }
@@ -873,17 +874,20 @@ input {
     repeating-linear-gradient(92deg, rgba(80, 45, 18, 0.12) 0 1px, transparent 1px 8px, rgba(255, 239, 202, 0.12) 8px 12px),
     linear-gradient(135deg, rgba(202, 142, 74, 0.62), rgba(139, 79, 35, 0.58));
   grid-area: felt;
-  grid-template-rows: auto minmax(250px, 1fr) auto;
+  grid-template-rows: minmax(250px, 1fr) auto;
   overflow: hidden;
   position: relative;
 }
 
 .saved-area {
+  align-items: center;
   background:
     linear-gradient(145deg, rgba(255, 247, 224, 0.34), rgba(198, 131, 55, 0.18)),
     rgba(121, 68, 30, 0.2);
   border: 1px dashed rgba(255, 236, 190, 0.72);
   grid-area: saved;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 1fr;
 }
 
 .table-label {
@@ -898,7 +902,11 @@ input {
 }
 
 .felt-area .table-label {
-  position: relative;
+  inset: 10px 10px auto;
+  pointer-events: none;
+  position: absolute;
+  text-shadow: 0 1px 3px rgba(50, 26, 10, 0.7);
+  width: auto;
   z-index: 3;
 }
 
@@ -906,6 +914,16 @@ input {
   background: rgba(84, 45, 18, 0.22);
   border-radius: 999px;
   padding: 3px 7px;
+}
+
+.felt-area .table-label span:last-child {
+  background: transparent;
+}
+
+.saved-area .table-label {
+  gap: 8px;
+  justify-content: start;
+  white-space: nowrap;
 }
 
 .dice-3d-stage {
@@ -955,10 +973,11 @@ input {
 }
 
 .held-dice {
-  align-content: start;
+  align-content: center;
   gap: 8px;
-  grid-template-columns: repeat(2, minmax(0, 54px));
+  grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 54px));
   justify-content: center;
+  width: 100%;
 }
 
 .dice-slot {
@@ -2056,20 +2075,22 @@ body[data-dice-theme="glitter"] .die::after {
     border-width: 6px;
     gap: 8px;
     grid-template-areas:
-      "felt saved";
-    grid-template-columns: minmax(0, 1fr) minmax(110px, 140px);
+      "felt"
+      "saved";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
     min-height: 392px;
     padding: 8px;
   }
 
   body.in-game .felt-area,
   body.in-game .saved-area {
-    gap: 7px;
+    gap: 1px;
     padding: 7px;
   }
 
   body.in-game .felt-area {
-    grid-template-rows: auto minmax(258px, 1fr) auto;
+    grid-template-rows: minmax(258px, 1fr) auto;
   }
 
   body.in-game .dice-3d-stage {
@@ -2093,7 +2114,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .held-dice {
-    grid-template-columns: repeat(2, minmax(0, 48px));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 48px));
   }
 
   body.in-game .die {
@@ -2339,13 +2360,15 @@ body[data-dice-theme="glitter"] .die::after {
 
   body.in-game .dice-table {
     grid-template-areas:
-      "felt saved";
-    grid-template-columns: minmax(0, 1fr) minmax(92px, 118px);
+      "felt"
+      "saved";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
     min-height: 424px;
   }
 
   body.in-game .felt-area {
-    grid-template-rows: auto minmax(294px, 1fr) auto;
+    grid-template-rows: minmax(294px, 1fr) auto;
   }
 
   body.in-game .dice-3d-stage {
@@ -2440,7 +2463,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .felt-area {
-    grid-template-rows: auto minmax(230px, 1fr) auto;
+    grid-template-rows: minmax(230px, 1fr) auto;
   }
 
   body.in-game .dice-3d-stage {
@@ -2456,7 +2479,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .held-dice {
-    grid-template-columns: repeat(2, minmax(0, 44px));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 44px));
   }
 
   body.in-game .turn-bar h1 {
@@ -2499,7 +2522,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   .felt-area {
-    grid-template-rows: auto minmax(218px, 1fr) auto;
+    grid-template-rows: minmax(218px, 1fr) auto;
   }
 
   .dice-3d-stage {
@@ -2583,7 +2606,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   .held-dice {
-    grid-template-columns: repeat(var(--dice-count, 5), minmax(42px, 58px));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 58px));
   }
 
   .roll-box {
@@ -2597,7 +2620,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   .held-dice {
-    grid-template-columns: repeat(3, minmax(54px, 1fr));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 1fr));
   }
 
   .topbar {
