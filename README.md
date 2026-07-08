@@ -4,6 +4,7 @@ A small realtime Yatzy app for private rooms. It supports:
 
 - Norwegian Yatzy with 5 dice, 63-point upper bonus, pair/two-pair, fixed straights, house, chance, and Yatzy.
 - Maxi Yatzy with 6 dice, 84-point upper bonus, three pairs, five of a kind, full straight, villa, tower, Maxi Yatzy, and saved unused rolls.
+- Optional forced mode for both variants, with lower upper-section bonus thresholds, five rolls on the Yatzy round, and early Yatzy scoring that defers the skipped field to the final round.
 - Any number of players in the lobby before the game starts.
 - Private room links, no accounts, reconnect from the same browser.
 - Server-owned turns, dice rolls, scoring, and version checks for stale clicks.

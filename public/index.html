@@ -82,8 +82,67 @@
                   <p class="eyebrow" id="turnEyebrow">Venter</p>
                   <h1 id="turnTitle">Lobby</h1>
                 </div>
-                <button class="primary action-button" id="startGame" type="button">Start spill</button>
+                <div class="lobby-actions">
+                  <button class="secondary action-button is-hidden" id="rulesToggle" type="button" aria-expanded="false" aria-controls="rulesPanel">Regler</button>
+                  <button class="primary action-button" id="startGame" type="button">Start spill</button>
+                </div>
               </div>
+
+              <form class="rules-panel is-hidden" id="rulesPanel">
+                <fieldset class="rules-section">
+                  <legend>Generelt</legend>
+                  <div class="rule-grid">
+                    <label class="field rule-number-field">
+                      <span>Poenggrense bonus</span>
+                      <input id="bonusThresholdInput" type="number" min="0" max="999" step="1" inputmode="numeric">
+                    </label>
+                    <label class="field rule-number-field">
+                      <span>Bonuspoeng</span>
+                      <input id="bonusPointsInput" type="number" min="0" max="999" step="1" inputmode="numeric">
+                    </label>
+                    <label class="field rule-number-field">
+                      <span>Yatzy-poeng</span>
+                      <input id="yatzyPointsInput" type="number" min="0" max="999" step="1" inputmode="numeric">
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="rules-section">
+                  <legend>Tvungen</legend>
+                  <div class="rule-toggle-grid">
+                    <label class="rule-toggle" id="forcedModeOption">
+                      <input id="forcedModeToggle" type="checkbox">
+                      <span class="toggle-track" aria-hidden="true"></span>
+                      <span class="toggle-copy">
+                        <strong>Tvungen modus</strong>
+                        <small>Ovenfra og ned</small>
+                      </span>
+                    </label>
+                    <label class="rule-toggle" id="forcedYatzyAnywhereOption">
+                      <input id="forcedYatzyAnywhereToggle" type="checkbox">
+                      <span class="toggle-track" aria-hidden="true"></span>
+                      <span class="toggle-copy">
+                        <strong>Plasser Yatzy fritt</strong>
+                        <small>Utsett feltet du hopper over</small>
+                      </span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="rules-section" id="maxiRulesSection">
+                  <legend>Maxi Yatzy</legend>
+                  <div class="rule-grid">
+                    <label class="field rule-number-field">
+                      <span>Full straight</span>
+                      <input id="fullStraightPointsInput" type="number" min="0" max="999" step="1" inputmode="numeric">
+                    </label>
+                  </div>
+                </fieldset>
+
+                <div class="rule-actions">
+                  <button class="primary small" id="saveRules" type="submit">Lagre regler</button>
+                </div>
+              </form>
 
               <div class="dice-zone">
                 <div class="dice-table" id="diceTable">
@@ -201,6 +260,6 @@
 
     <div class="celebration-layer" id="celebrationLayer" aria-hidden="true"></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js?v=20260707-oak-cute-dice" defer></script>
+    <script src="/app.js?v=20260708-rules-panel" defer></script>
   </body>
 </html>

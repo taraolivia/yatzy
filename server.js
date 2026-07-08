@@ -4,9 +4,16 @@ const http = require("node:http");
 const path = require("node:path");
 const {
   createEmptyScores,
+  defaultRuleSettings,
   getRules,
+  normalizeRuleSettings,
   scoreCategory,
   scorePreview,
+  yatzyCategory,
+  isYatzyCategory,
+  nextOpenCategory,
+  isForcedYatzyRound,
+  upperBonusThreshold,
   calculateTotals,
   isScorecardComplete
 } = require("./src/rules");
@@ -98,6 +105,18 @@ function cleanChatMessage(message) {
   return message.trim().replace(/\s+/g, " ").slice(0, 160);
 }
 
+function cleanForcedMode(value) {
+  return value === true;
+}
+
+function ruleSettingsFor(game, forcedMode = Boolean(game.forcedMode)) {
+  return normalizeRuleSettings(game.mode, game.ruleSettings, { forcedMode });
+}
+
+function ruleSettingsAreEqual(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function createCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
@@ -114,6 +133,7 @@ function createPlayer(name) {
     name: cleanName(name),
     scores: null,
     savedRolls: 0,
+    forcedDeferredCategoryId: null,
     joinedAt: new Date().toISOString()
   };
 }
@@ -135,6 +155,8 @@ function createGame({ mode, name }) {
   const game = {
     code: createCode(),
     mode: rules.id,
+    forcedMode: false,
+    ruleSettings: defaultRuleSettings(rules.id, false),
     status: "lobby",
     version: 1,
     hostSeatId: player.seatId,
@@ -160,14 +182,36 @@ function publicGame(game) {
   const rules = getRules(game.mode);
   const currentPlayer = game.players.find((player) => player.seatId === game.currentSeatId) || null;
   const currentScores = currentPlayer ? currentPlayer.scores : null;
-  const rollLimit = currentPlayer ? rules.baseRolls + (rules.canSaveRolls ? currentPlayer.savedRolls : 0) : rules.baseRolls;
-  const preview = currentScores ? scorePreview(game.mode, currentScores, game.dice) : {};
+  const forcedMode = Boolean(game.forcedMode);
+  const ruleSettings = ruleSettingsFor(game, forcedMode);
+  const rollLimit = currentPlayer ? turnBaseRolls(game, currentPlayer, rules) : rules.baseRolls;
+  const nextForcedCategory = forcedMode && currentPlayer ? nextForcedCategoryForPlayer(game, currentPlayer) : null;
+  let preview = currentScores ? scorePreview(game.mode, currentScores, game.dice, ruleSettings) : {};
   const scoreReadyRolls = 1;
+  const extraRollsUsed = Math.max(0, game.rollsUsed - rollLimit);
+  if (forcedMode && currentPlayer) {
+    const forcedPreview = {};
+    if (nextForcedCategory && Object.prototype.hasOwnProperty.call(preview, nextForcedCategory.id)) {
+      forcedPreview[nextForcedCategory.id] = preview[nextForcedCategory.id];
+    }
+    const earlyYatzy = earlyYatzyCategory(game, currentPlayer, nextForcedCategory);
+    if (earlyYatzy && Object.prototype.hasOwnProperty.call(preview, earlyYatzy.id)) {
+      forcedPreview[earlyYatzy.id] = preview[earlyYatzy.id];
+    }
+    preview = forcedPreview;
+  }
 
   return {
     code: game.code,
     mode: game.mode,
     modeName: rules.name,
+    forcedMode,
+    ruleSettings,
+    rulePresets: {
+      normal: defaultRuleSettings(game.mode, false),
+      forced: defaultRuleSettings(game.mode, true)
+    },
+    nextForcedCategoryId: nextForcedCategory?.id || null,
     status: game.status,
     version: game.version,
     hostSeatId: game.hostSeatId,
@@ -177,11 +221,14 @@ function publicGame(game) {
     held: game.held,
     rollsUsed: game.rollsUsed,
     scoreReadyRolls,
+    baseRolls: rollLimit,
     rollLimit,
     rollsLeft: Math.max(0, rollLimit - game.rollsUsed),
+    extraRollsUsed,
     canSaveRolls: rules.canSaveRolls,
-    upperBonusThreshold: rules.upperBonusThreshold,
-    upperBonus: rules.upperBonus,
+    canUseSavedRoll: currentPlayer ? canSpendSavedRoll(game, currentPlayer, rules) : false,
+    upperBonusThreshold: upperBonusThreshold(game.mode, forcedMode, ruleSettings),
+    upperBonus: ruleSettings.upperBonus,
     categories: rules.categories,
     scorePreview: preview,
     players: game.players.map((player) => ({
@@ -190,7 +237,7 @@ function publicGame(game) {
       savedRolls: player.savedRolls,
       isHost: player.seatId === game.hostSeatId,
       scores: player.scores,
-      totals: calculateTotals(game.mode, player.scores)
+      totals: calculateTotals(game.mode, player.scores, { forcedMode, ruleSettings })
     })),
     winners: winnersFor(game),
     log: game.log,
@@ -201,10 +248,11 @@ function publicGame(game) {
 
 function winnersFor(game) {
   if (game.status !== "finished") return [];
+  const ruleSettings = ruleSettingsFor(game);
   const totals = game.players.map((player) => ({
     seatId: player.seatId,
     name: player.name,
-    total: calculateTotals(game.mode, player.scores).total
+    total: calculateTotals(game.mode, player.scores, { forcedMode: Boolean(game.forcedMode), ruleSettings }).total
   }));
   const top = Math.max(...totals.map((player) => player.total));
   return totals.filter((player) => player.total === top);
@@ -260,6 +308,36 @@ function startGame(game, player, version) {
   touch(game);
 }
 
+function updateGameSettings(game, player, version, settings) {
+  assertVersion(game, version);
+  if (game.status !== "lobby") throw httpError(400, "Innstillingene kan bare endres før spillet starter.");
+  if (!game.players.some((entry) => entry.seatId === player.seatId)) throw httpError(403, "Du er ikke med i rommet.");
+
+  const forcedMode = Object.prototype.hasOwnProperty.call(settings, "forcedMode")
+    ? cleanForcedMode(settings.forcedMode)
+    : Boolean(game.forcedMode);
+  const forcedModeChanged = Boolean(game.forcedMode) !== forcedMode;
+  const hasIncomingRuleSettings = settings.ruleSettings && typeof settings.ruleSettings === "object";
+  const ruleSource = hasIncomingRuleSettings
+    ? settings.ruleSettings
+    : forcedModeChanged
+      ? defaultRuleSettings(game.mode, forcedMode)
+      : game.ruleSettings;
+  const nextRuleSettings = normalizeRuleSettings(game.mode, ruleSource, { forcedMode });
+  const currentRuleSettings = ruleSettingsFor(game, forcedMode);
+
+  if (!forcedModeChanged && ruleSettingsAreEqual(currentRuleSettings, nextRuleSettings)) return;
+
+  game.forcedMode = forcedMode;
+  game.ruleSettings = nextRuleSettings;
+  if (forcedModeChanged) {
+    addLog(game, `${player.name} slo ${forcedMode ? "på" : "av"} tvungen modus.`);
+  } else {
+    addLog(game, `${player.name} oppdaterte reglene.`);
+  }
+  touch(game);
+}
+
 function restartGame(game, player, version) {
   assertVersion(game, version);
   if (!game.players.some((entry) => entry.seatId === player.seatId)) throw httpError(403, "Du er ikke med i rommet.");
@@ -269,6 +347,7 @@ function restartGame(game, player, version) {
   for (const entry of game.players) {
     entry.scores = createEmptyScores(game.mode);
     entry.savedRolls = 0;
+    entry.forcedDeferredCategoryId = null;
   }
 
   game.status = "playing";
@@ -287,13 +366,48 @@ function requireActiveTurn(game, player) {
   if (game.currentSeatId !== player.seatId) throw httpError(403, "Det er ikke din tur.");
 }
 
-function rollDice(game, player, version, dice = null) {
+function nextForcedCategoryForPlayer(game, player) {
+  return nextOpenCategory(game.mode, player.scores, player.forcedDeferredCategoryId);
+}
+
+function turnBaseRolls(game, player, rules = getRules(game.mode)) {
+  if (game.forcedMode && isForcedYatzyRound(game.mode, player.scores, player.forcedDeferredCategoryId)) {
+    return 5;
+  }
+  return rules.baseRolls;
+}
+
+function canSpendSavedRoll(game, player, rules = getRules(game.mode)) {
+  return rules.canSaveRolls && player.savedRolls > 0 && game.rollsUsed >= turnBaseRolls(game, player, rules);
+}
+
+function earlyYatzyCategory(game, player, nextCategory = nextForcedCategoryForPlayer(game, player)) {
+  if (!game.forcedMode || !nextCategory || isYatzyCategory(game.mode, nextCategory.id)) return null;
+  const ruleSettings = ruleSettingsFor(game);
+  if (!ruleSettings.forcedYatzyAnywhere) return null;
+
+  const yatzy = yatzyCategory(game.mode);
+  if (!yatzy || player.scores[yatzy.id] !== null) return null;
+  return scoreCategory(game.mode, yatzy.id, game.dice, ruleSettings) > 0 ? yatzy : null;
+}
+
+function rollDice(game, player, version, dice = null, useSavedRoll = false) {
   assertVersion(game, version);
   requireActiveTurn(game, player);
 
   const rules = getRules(game.mode);
-  const rollLimit = rules.baseRolls + (rules.canSaveRolls ? player.savedRolls : 0);
-  if (game.rollsUsed >= rollLimit) throw httpError(400, "Du har ikke flere kast igjen.");
+  const rollLimit = turnBaseRolls(game, player, rules);
+  const baseRollAvailable = game.rollsUsed < rollLimit;
+  const spendsSavedRoll = Boolean(useSavedRoll);
+
+  if (spendsSavedRoll) {
+    if (!rules.canSaveRolls) throw httpError(400, "Denne varianten har ikke ekstra kast.");
+    if (baseRollAvailable) throw httpError(400, "Bruk de vanlige kastene f\u00f8rst.");
+    if (!canSpendSavedRoll(game, player, rules)) throw httpError(400, "Du har ingen sjetonger igjen.");
+  } else if (!baseRollAvailable) {
+    const message = rules.canSaveRolls ? "Bruk en sjetong for ekstra kast." : "Du har ikke flere kast igjen.";
+    throw httpError(400, message);
+  }
 
   const firstRoll = game.dice.length === 0;
   const nextDice = firstRoll ? Array.from({ length: rules.diceCount }, () => 0) : [...game.dice];
@@ -314,9 +428,13 @@ function rollDice(game, player, version, dice = null) {
     }
   }
 
+  if (spendsSavedRoll) {
+    player.savedRolls -= 1;
+  }
+
   game.dice = nextDice;
   game.rollsUsed += 1;
-  addLog(game, `${player.name} kastet terningene.`);
+  addLog(game, spendsSavedRoll ? `${player.name} brukte en sjetong og kastet terningene.` : `${player.name} kastet terningene.`);
   touch(game);
 }
 
@@ -339,12 +457,26 @@ function scoreTurn(game, player, version, categoryId) {
   if (!category) throw httpError(400, "Ukjent kategori.");
   if (game.rollsUsed === 0) throw httpError(400, "Du m\u00e5 kaste minst en gang f\u00f8r du scorer.");
   if (player.scores[categoryId] !== null) throw httpError(400, "Den kategorien er allerede brukt.");
+  const rollLimit = turnBaseRolls(game, player, rules);
+  const nextCategory = game.forcedMode ? nextForcedCategoryForPlayer(game, player) : null;
+  const earlyYatzy = game.forcedMode ? earlyYatzyCategory(game, player, nextCategory) : null;
+  if (game.forcedMode) {
+    if (nextCategory && nextCategory.id !== categoryId && earlyYatzy?.id !== categoryId) {
+      throw httpError(400, `I tvungen modus m\u00e5 du score ${nextCategory.label}.`);
+    }
+  }
 
-  const points = scoreCategory(game.mode, categoryId, game.dice);
+  const points = scoreCategory(game.mode, categoryId, game.dice, ruleSettingsFor(game));
   player.scores[categoryId] = points;
+  if (earlyYatzy?.id === categoryId && nextCategory) {
+    player.forcedDeferredCategoryId = nextCategory.id;
+  } else if (player.forcedDeferredCategoryId === categoryId) {
+    player.forcedDeferredCategoryId = null;
+  }
 
   if (rules.canSaveRolls) {
-    player.savedRolls = Math.max(0, player.savedRolls + rules.baseRolls - game.rollsUsed);
+    const unusedBaseRolls = Math.max(0, rollLimit - game.rollsUsed);
+    player.savedRolls = Math.max(0, player.savedRolls + unusedBaseRolls);
   }
 
   addLog(game, `${player.name} skrev ${points} p\u00e5 ${category.label}.`);
@@ -447,10 +579,12 @@ async function handleApi(req, res, url) {
 
   if (action === "start") {
     startGame(game, player, body.version);
+  } else if (action === "settings") {
+    updateGameSettings(game, player, body.version, body);
   } else if (action === "restart") {
     restartGame(game, player, body.version);
   } else if (action === "roll") {
-    rollDice(game, player, body.version, body.dice ?? null);
+    rollDice(game, player, body.version, body.dice ?? null, body.useSavedRoll === true);
   } else if (action === "hold") {
     toggleHold(game, player, body.version, body.index);
   } else if (action === "score") {

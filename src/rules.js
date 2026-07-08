@@ -32,7 +32,7 @@ const MAXI_LOWER_CATEGORIES = [
   { id: "largeStraight", label: "Stor straight", section: "lower" },
   { id: "fullStraight", label: "Full straight", section: "lower" },
   { id: "fullHouse", label: "Hus", section: "lower" },
-  { id: "villa", label: "Villa", section: "lower" },
+  { id: "villa", label: "Hytte", section: "lower" },
   { id: "tower", label: "T\u00e5rn", section: "lower" },
   { id: "chance", label: "Sjanse", section: "lower" },
   { id: "maxiYatzy", label: "Maxi Yatzy", section: "lower" }
@@ -45,7 +45,10 @@ const RULESETS = {
     diceCount: 5,
     baseRolls: 3,
     upperBonusThreshold: 63,
+    forcedUpperBonusThreshold: 42,
     upperBonus: 50,
+    yatzyScore: 50,
+    fullStraightScore: 21,
     canSaveRolls: false,
     categories: [...UPPER_CATEGORIES, ...NORMAL_LOWER_CATEGORIES]
   },
@@ -55,7 +58,10 @@ const RULESETS = {
     diceCount: 6,
     baseRolls: 3,
     upperBonusThreshold: 84,
+    forcedUpperBonusThreshold: 63,
     upperBonus: 100,
+    yatzyScore: 100,
+    fullStraightScore: 21,
     canSaveRolls: true,
     categories: [...UPPER_CATEGORIES, ...MAXI_LOWER_CATEGORIES]
   }
@@ -63,6 +69,40 @@ const RULESETS = {
 
 function getRules(mode) {
   return RULESETS[mode] || RULESETS.normal;
+}
+
+function cleanRuleNumber(value, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(0, Math.min(999, Math.trunc(number)));
+}
+
+function defaultUpperBonusThreshold(mode, forcedMode = false) {
+  const rules = getRules(mode);
+  return forcedMode ? rules.forcedUpperBonusThreshold : rules.upperBonusThreshold;
+}
+
+function defaultRuleSettings(mode, forcedMode = false) {
+  const rules = getRules(mode);
+  return {
+    upperBonusThreshold: defaultUpperBonusThreshold(mode, forcedMode),
+    upperBonus: rules.upperBonus,
+    yatzyScore: rules.yatzyScore,
+    fullStraightScore: rules.fullStraightScore,
+    forcedYatzyAnywhere: true
+  };
+}
+
+function normalizeRuleSettings(mode, settings = {}, { forcedMode = false } = {}) {
+  const defaults = defaultRuleSettings(mode, forcedMode);
+  const source = settings && typeof settings === "object" ? settings : {};
+  return {
+    upperBonusThreshold: cleanRuleNumber(source.upperBonusThreshold, defaults.upperBonusThreshold),
+    upperBonus: cleanRuleNumber(source.upperBonus, defaults.upperBonus),
+    yatzyScore: cleanRuleNumber(source.yatzyScore, defaults.yatzyScore),
+    fullStraightScore: cleanRuleNumber(source.fullStraightScore, defaults.fullStraightScore),
+    forcedYatzyAnywhere: source.forcedYatzyAnywhere !== false
+  };
 }
 
 function createEmptyScores(mode) {
@@ -111,7 +151,7 @@ function hasFaces(dice, faces) {
   return faces.every((face) => values.has(face));
 }
 
-function scoreFullHouse(dice) {
+function scoreTripletAndPair(dice) {
   const counts = countsFor(dice);
   let best = 0;
   for (let triple = 6; triple >= 1; triple -= 1) {
@@ -125,7 +165,7 @@ function scoreFullHouse(dice) {
   return best;
 }
 
-function scoreVilla(dice) {
+function scoreTwoTriples(dice) {
   const counts = countsFor(dice);
   const triples = [];
   for (let face = 6; face >= 1; face -= 1) {
@@ -150,8 +190,9 @@ function scoreTower(dice) {
   return best;
 }
 
-function scoreCategory(mode, categoryId, dice) {
+function scoreCategory(mode, categoryId, dice, ruleSettings = null) {
   const rules = getRules(mode);
+  const settings = normalizeRuleSettings(mode, ruleSettings);
   const category = rules.categories.find((entry) => entry.id === categoryId);
   if (!category || dice.length !== rules.diceCount) return 0;
 
@@ -177,41 +218,82 @@ function scoreCategory(mode, categoryId, dice) {
     case "largeStraight":
       return hasFaces(dice, [2, 3, 4, 5, 6]) ? 20 : 0;
     case "fullStraight":
-      return hasFaces(dice, [1, 2, 3, 4, 5, 6]) ? 21 : 0;
+      return hasFaces(dice, [1, 2, 3, 4, 5, 6]) ? settings.fullStraightScore : 0;
     case "fullHouse":
-      return scoreFullHouse(dice);
+      return mode === "maxi" ? scoreTwoTriples(dice) : scoreTripletAndPair(dice);
     case "villa":
-      return scoreVilla(dice);
+      return scoreTripletAndPair(dice);
     case "tower":
       return scoreTower(dice);
     case "chance":
       return sum(dice);
     case "yatzy":
-      return new Set(dice).size === 1 ? 50 : 0;
+      return new Set(dice).size === 1 ? settings.yatzyScore : 0;
     case "maxiYatzy":
-      return new Set(dice).size === 1 ? 100 : 0;
+      return new Set(dice).size === 1 ? settings.yatzyScore : 0;
     default:
       return 0;
   }
 }
 
-function scorePreview(mode, scores, dice) {
+function scorePreview(mode, scores, dice, ruleSettings = null) {
   const rules = getRules(mode);
   if (!Array.isArray(dice) || dice.length !== rules.diceCount) return {};
   return Object.fromEntries(
     rules.categories
       .filter((category) => scores[category.id] === null)
-      .map((category) => [category.id, scoreCategory(mode, category.id, dice)])
+      .map((category) => [category.id, scoreCategory(mode, category.id, dice, ruleSettings)])
   );
 }
 
-function calculateTotals(mode, scores) {
+function yatzyCategory(mode) {
+  return getRules(mode).categories.find((category) => category.id.toLowerCase().includes("yatzy")) || null;
+}
+
+function isYatzyCategory(mode, categoryId) {
+  return yatzyCategory(mode)?.id === categoryId;
+}
+
+function nextOpenCategory(mode, scores, deferredCategoryId = null) {
+  const openCategories = getRules(mode).categories.filter((category) => scores?.[category.id] === null);
+  if (!openCategories.length) return null;
+
+  if (deferredCategoryId) {
+    const nonDeferred = openCategories.find((category) => category.id !== deferredCategoryId);
+    if (nonDeferred) return nonDeferred;
+  }
+
+  return openCategories[0];
+}
+
+function isForcedYatzyRound(mode, scores, deferredCategoryId = null) {
+  const nextCategory = nextOpenCategory(mode, scores, deferredCategoryId);
+  if (!nextCategory) return false;
+  if (isYatzyCategory(mode, nextCategory.id)) return true;
+
+  const openCategories = getRules(mode).categories.filter((category) => scores?.[category.id] === null);
+  const yatzy = yatzyCategory(mode);
+  return Boolean(
+    deferredCategoryId
+    && nextCategory.id === deferredCategoryId
+    && openCategories.length === 1
+    && yatzy
+    && scores?.[yatzy.id] !== null
+  );
+}
+
+function upperBonusThreshold(mode, forcedMode = false, ruleSettings = null) {
+  return normalizeRuleSettings(mode, ruleSettings, { forcedMode }).upperBonusThreshold;
+}
+
+function calculateTotals(mode, scores, { forcedMode = false, ruleSettings = null } = {}) {
   const rules = getRules(mode);
+  const settings = normalizeRuleSettings(mode, ruleSettings, { forcedMode });
   const upperIds = rules.categories.filter((category) => category.section === "upper").map((category) => category.id);
   const lowerIds = rules.categories.filter((category) => category.section === "lower").map((category) => category.id);
   const upper = upperIds.reduce((total, id) => total + (scores[id] ?? 0), 0);
   const lower = lowerIds.reduce((total, id) => total + (scores[id] ?? 0), 0);
-  const bonus = upper >= rules.upperBonusThreshold ? rules.upperBonus : 0;
+  const bonus = upper >= settings.upperBonusThreshold ? settings.upperBonus : 0;
   const filled = rules.categories.filter((category) => scores[category.id] !== null).length;
 
   return {
@@ -232,9 +314,16 @@ module.exports = {
   FACES,
   RULESETS,
   getRules,
+  defaultRuleSettings,
+  normalizeRuleSettings,
   createEmptyScores,
   scoreCategory,
   scorePreview,
+  yatzyCategory,
+  isYatzyCategory,
+  nextOpenCategory,
+  isForcedYatzyRound,
+  upperBonusThreshold,
   calculateTotals,
   isScorecardComplete
 };

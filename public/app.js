@@ -15,6 +15,18 @@ const els = {
   playersList: document.querySelector("#playersList"),
   turnEyebrow: document.querySelector("#turnEyebrow"),
   turnTitle: document.querySelector("#turnTitle"),
+  rulesToggle: document.querySelector("#rulesToggle"),
+  rulesPanel: document.querySelector("#rulesPanel"),
+  forcedModeOption: document.querySelector("#forcedModeOption"),
+  forcedModeToggle: document.querySelector("#forcedModeToggle"),
+  forcedYatzyAnywhereOption: document.querySelector("#forcedYatzyAnywhereOption"),
+  forcedYatzyAnywhereToggle: document.querySelector("#forcedYatzyAnywhereToggle"),
+  bonusThresholdInput: document.querySelector("#bonusThresholdInput"),
+  bonusPointsInput: document.querySelector("#bonusPointsInput"),
+  yatzyPointsInput: document.querySelector("#yatzyPointsInput"),
+  fullStraightPointsInput: document.querySelector("#fullStraightPointsInput"),
+  maxiRulesSection: document.querySelector("#maxiRulesSection"),
+  saveRules: document.querySelector("#saveRules"),
   startGame: document.querySelector("#startGame"),
   diceTable: document.querySelector("#diceTable"),
   dice3dStage: document.querySelector("#dice3dStage"),
@@ -48,7 +60,10 @@ const state = {
   toastTimer: null,
   celebrationTimer: null,
   celebratedYatzies: new Set(),
+  rulesPanelOpen: false,
   isRolling: false,
+  rollContext: null,
+  rollAnimationId: 0,
   animatedDice: [],
   rollTimer: null,
   dice3d: {
@@ -229,13 +244,16 @@ async function action(name, extra = {}) {
   const isRoll = name === "roll";
   const startedAt = Date.now();
   const previousGame = state.game;
+  let rollAnimationId = null;
   let rollDiceValues = null;
   state.pending = true;
   if (isRoll) {
-    startRollAnimation();
+    rollAnimationId = startRollAnimation(state.game, { context: "local" });
     playRollSound();
   } else if (name === "hold") {
     playClickSound();
+  } else if (name === "settings") {
+    state.game = { ...state.game, ...extra };
   }
   render();
   try {
@@ -253,7 +271,7 @@ async function action(name, extra = {}) {
     });
     if (isRoll) {
       await waitForRollVisual(startedAt);
-      stopRollAnimation();
+      stopRollAnimation(rollAnimationId);
       state.game = payload.game;
     } else if (name === "score") {
       maybeCelebrateYatzy(previousGame, payload.game);
@@ -270,9 +288,10 @@ async function action(name, extra = {}) {
       state.game = payload.game;
     }
   } catch (error) {
+    if (name === "settings") state.game = previousGame;
     showToast(error.message);
   } finally {
-    if (isRoll && state.isRolling) stopRollAnimation();
+    if (isRoll && state.rollContext === "local") stopRollAnimation(rollAnimationId);
     state.pending = false;
     render();
   }
@@ -320,6 +339,7 @@ function connectEvents(code) {
       void animateIncomingRoll(previousGame, nextGame);
       return;
     }
+    cancelIncomingRollAnimation();
     state.game = nextGame;
     render();
   });
@@ -332,6 +352,7 @@ function leaveRoom() {
   state.playerToken = null;
   state.seatId = null;
   state.celebratedYatzies.clear();
+  state.rulesPanelOpen = false;
   hideOverlay();
   const url = new URL(window.location.href);
   url.searchParams.delete("room");
@@ -449,6 +470,7 @@ function dice3dConfig(theme = currentDiceTheme()) {
 
 async function startDice3dRoll() {
   const rollId = state.dice3d.rollId;
+  clearStaticDice3d();
   setDice3dVisible(true);
   await prepareDice3d();
   if (rollId !== state.dice3d.rollId) return false;
@@ -513,6 +535,10 @@ async function waitForRollVisual(startedAt) {
   await wait(Math.max(0, duration - (Date.now() - startedAt)));
 }
 
+function isCurrentRollAnimation(animationId) {
+  return state.isRolling && animationId === state.rollAnimationId;
+}
+
 async function diceValuesFromRollVisual() {
   const rollId = state.dice3d.rollId;
   if (state.dice3d.startPromise) {
@@ -573,6 +599,8 @@ function finishDice3dRoll() {
   state.dice3d.rollPromise = null;
   state.dice3d.settlePromise = null;
   state.dice3d.settleResolve = null;
+  clearStaticDice3d();
+  if (state.game?.dice.length) setDice3dVisible(true);
 }
 
 function cancelDice3dRoll(rollId = state.dice3d.rollId) {
@@ -593,6 +621,7 @@ function clearDice3dStage() {
   state.dice3d.rollPromise = null;
   state.dice3d.settlePromise = null;
   state.dice3d.settleResolve = null;
+  clearStaticDice3d();
   setDice3dVisible(false);
   clearDice3dInstance();
 }
@@ -605,9 +634,23 @@ function clearDice3dInstance() {
   }
 }
 
-async function startRollAnimation(animationGame = state.game) {
+function clearStaticDice3d() {
+  if (!els.dice3dStage) return;
+  els.dice3dStage.classList.remove("has-static-dice");
+  els.dice3dStage.querySelector(".dice-3d-static")?.remove();
+}
+
+function syncDice3dVisualState() {
+  clearStaticDice3d();
+}
+
+function startRollAnimation(animationGame = state.game, { context = "local" } = {}) {
   if (!animationGame) return;
   window.clearInterval(state.rollTimer);
+  clearStaticDice3d();
+  state.rollAnimationId += 1;
+  const animationId = state.rollAnimationId;
+  state.rollContext = context;
   state.dice3d.rollId += 1;
   const count = animationGame.mode === "maxi" ? 6 : 5;
   const held = animationGame.held.slice(0, count);
@@ -616,22 +659,33 @@ async function startRollAnimation(animationGame = state.game) {
   state.isRolling = true;
   renderDice();
   state.dice3d.startPromise = startDice3dRoll().then((didStart) => {
-    if (state.isRolling) renderDice();
+    if (isCurrentRollAnimation(animationId)) renderDice();
     return didStart;
   });
   state.rollTimer = window.setInterval(() => {
+    if (!isCurrentRollAnimation(animationId)) return;
     state.animatedDice = state.animatedDice.map((value, index) => (held[index] ? value : randomDie()));
     renderDice();
   }, 62);
+  return animationId;
 }
 
-function stopRollAnimation() {
+function stopRollAnimation(animationId = null) {
+  if (animationId !== null && animationId !== state.rollAnimationId) return false;
   window.clearInterval(state.rollTimer);
   state.rollTimer = null;
   state.isRolling = false;
+  state.rollContext = null;
   state.animatedDice = [];
   state.dice3d.startPromise = null;
   finishDice3dRoll();
+  return true;
+}
+
+function cancelIncomingRollAnimation() {
+  if (state.rollContext !== "incoming") return;
+  state.rollAnimationId += 1;
+  stopRollAnimation();
 }
 
 function shouldAnimateIncomingRoll(previous, next) {
@@ -645,10 +699,12 @@ async function animateIncomingRoll(previousGame, nextGame) {
   const startedAt = Date.now();
   if (!previousGame || !nextGame) return;
   state.game = previousGame;
-  startRollAnimation(previousGame);
+  const animationId = startRollAnimation(previousGame, { context: "incoming" });
   playRollSound(0.55);
   await waitForRollVisual(startedAt);
-  stopRollAnimation();
+  if (!isCurrentRollAnimation(animationId)) return;
+  stopRollAnimation(animationId);
+  if (state.game && state.game.version > nextGame.version) return;
   state.game = nextGame;
   render();
 }
@@ -777,6 +833,7 @@ function applyDiceTheme(theme) {
   if (!state.isRolling) {
     clearDice3dStage();
     syncDice3dTheme(safeTheme);
+    if (state.game) renderDice();
   }
   renderDiceCustomizer();
 }
@@ -829,14 +886,110 @@ function render() {
 
 function renderRoom() {
   const game = state.game;
-  els.roomTitle.textContent = game.modeName;
+  els.roomTitle.textContent = `${game.modeName}${game.forcedMode ? " · Tvungen" : ""}`;
   els.roomCodeLabel.textContent = game.code;
   els.gameStatus.textContent = statusText(game.status);
   els.gameStatus.style.background = game.status === "playing" ? "#e9f8f1" : game.status === "finished" ? "#eaf1ff" : "#fff7db";
+  renderRulesPanel();
   els.startGame.classList.toggle("is-hidden", game.status !== "lobby");
   els.startGame.classList.toggle("maxi-button", game.mode === "maxi");
   els.startGame.textContent = game.mode === "maxi" ? "Start Maxi Yatzy" : "Start spill";
   els.startGame.disabled = state.pending || game.players.length === 0;
+}
+
+function renderRulesPanel() {
+  if (!els.rulesToggle || !els.rulesPanel || !state.game) return;
+
+  const game = state.game;
+  const showRules = game.status === "lobby";
+  if (!showRules) state.rulesPanelOpen = false;
+  els.rulesToggle.classList.toggle("is-hidden", !showRules);
+  els.rulesToggle.setAttribute("aria-expanded", String(state.rulesPanelOpen && showRules));
+  els.rulesToggle.disabled = state.pending;
+  els.rulesToggle.classList.toggle("is-active", state.rulesPanelOpen && showRules);
+  els.rulesPanel.classList.toggle("is-hidden", !(state.rulesPanelOpen && showRules));
+
+  const settings = effectiveRuleSettings(game);
+  const isEditingRules = els.rulesPanel.contains(document.activeElement) && !state.pending;
+  if (!isEditingRules) {
+    if (els.forcedModeToggle) els.forcedModeToggle.checked = Boolean(game.forcedMode);
+    if (els.forcedYatzyAnywhereToggle) els.forcedYatzyAnywhereToggle.checked = settings.forcedYatzyAnywhere !== false;
+    if (els.bonusThresholdInput) els.bonusThresholdInput.value = settings.upperBonusThreshold;
+    if (els.bonusPointsInput) els.bonusPointsInput.value = settings.upperBonus;
+    if (els.yatzyPointsInput) els.yatzyPointsInput.value = settings.yatzyScore;
+    if (els.fullStraightPointsInput) els.fullStraightPointsInput.value = settings.fullStraightScore;
+  }
+
+  const formDisabled = !showRules || state.pending;
+  els.rulesPanel.querySelectorAll("input, button").forEach((control) => {
+    control.disabled = formDisabled;
+  });
+  if (els.maxiRulesSection) els.maxiRulesSection.classList.toggle("is-hidden", game.mode !== "maxi");
+  syncForcedRuleDraft();
+}
+
+function effectiveRuleSettings(game = state.game) {
+  const fallback = defaultRuleSettingsForGame(game, Boolean(game?.forcedMode));
+  const preset = game?.rulePresets?.[game.forcedMode ? "forced" : "normal"] || fallback;
+  return {
+    upperBonusThreshold: Number(game?.ruleSettings?.upperBonusThreshold ?? preset.upperBonusThreshold),
+    upperBonus: Number(game?.ruleSettings?.upperBonus ?? preset.upperBonus),
+    yatzyScore: Number(game?.ruleSettings?.yatzyScore ?? preset.yatzyScore),
+    fullStraightScore: Number(game?.ruleSettings?.fullStraightScore ?? preset.fullStraightScore),
+    forcedYatzyAnywhere: game?.ruleSettings?.forcedYatzyAnywhere !== false
+  };
+}
+
+function defaultRuleSettingsForGame(game = state.game, forcedMode = Boolean(game?.forcedMode)) {
+  const isMaxi = game?.mode === "maxi";
+  return {
+    upperBonusThreshold: forcedMode ? (isMaxi ? 63 : 42) : (isMaxi ? 84 : 63),
+    upperBonus: isMaxi ? 100 : 50,
+    yatzyScore: isMaxi ? 100 : 50,
+    fullStraightScore: 21,
+    forcedYatzyAnywhere: true
+  };
+}
+
+function rulePresetFor(forcedMode) {
+  return state.game?.rulePresets?.[forcedMode ? "forced" : "normal"] || defaultRuleSettingsForGame(state.game, forcedMode);
+}
+
+function cleanRuleInput(input, fallback) {
+  const value = Number(input?.value);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.min(999, Math.trunc(value)));
+}
+
+function collectRuleSettings() {
+  const current = effectiveRuleSettings();
+  return {
+    forcedMode: Boolean(els.forcedModeToggle?.checked),
+    ruleSettings: {
+      upperBonusThreshold: cleanRuleInput(els.bonusThresholdInput, current.upperBonusThreshold),
+      upperBonus: cleanRuleInput(els.bonusPointsInput, current.upperBonus),
+      yatzyScore: cleanRuleInput(els.yatzyPointsInput, current.yatzyScore),
+      fullStraightScore: cleanRuleInput(els.fullStraightPointsInput, current.fullStraightScore),
+      forcedYatzyAnywhere: els.forcedYatzyAnywhereToggle?.checked !== false
+    }
+  };
+}
+
+function syncForcedRuleDraft() {
+  const forced = Boolean(els.forcedModeToggle?.checked);
+  if (els.forcedYatzyAnywhereOption) els.forcedYatzyAnywhereOption.classList.toggle("is-disabled", !forced);
+  if (els.forcedYatzyAnywhereToggle) els.forcedYatzyAnywhereToggle.disabled = state.pending || !forced;
+}
+
+function handleForcedModeDraftChange() {
+  const nextForced = Boolean(els.forcedModeToggle?.checked);
+  const previousPreset = rulePresetFor(!nextForced);
+  const nextPreset = rulePresetFor(nextForced);
+  const currentThreshold = cleanRuleInput(els.bonusThresholdInput, previousPreset.upperBonusThreshold);
+  if (currentThreshold === previousPreset.upperBonusThreshold && els.bonusThresholdInput) {
+    els.bonusThresholdInput.value = nextPreset.upperBonusThreshold;
+  }
+  syncForcedRuleDraft();
 }
 
 function statusText(status) {
@@ -853,7 +1006,7 @@ function renderPlayers() {
       const host = player.isHost ? "vert" : "spiller";
       const turn = player.seatId === game.currentSeatId ? "tur" : host;
       const mine = player.seatId === state.seatId ? " deg" : "";
-      const saved = game.canSaveRolls ? `, ${player.savedRolls} spart` : "";
+      const saved = game.canSaveRolls ? `, ${savedRollText(player.savedRolls)}` : "";
       return `
         <div class="player-item ${player.seatId === game.currentSeatId ? "is-current" : ""}">
           <div class="avatar">${escapeHtml(initials(player.name))}</div>
@@ -906,6 +1059,8 @@ function renderDice() {
     held: Boolean(game.held[index])
   }));
 
+  syncDice3dVisualState();
+
   if (hasSplitDiceLayout()) {
     renderSplitDice(diceEntries, canHold, count);
   } else if (ensureLegacyDiceRow()) {
@@ -922,8 +1077,8 @@ function renderDice() {
   }
 
   els.rollDice.disabled = !canRollDice();
-  els.rollDice.textContent = state.isRolling ? "Ruller" : game.rollsUsed === 0 ? "Kast" : "Kast igjen";
-  els.rollMeta.textContent = rollMetaText(game);
+  els.rollDice.textContent = rollButtonText(game);
+  renderRollMeta(game);
 }
 
 function hasSplitDiceLayout() {
@@ -1022,9 +1177,45 @@ function renderEmptyFelt(label) {
 
 function rollMetaText(game) {
   if (game.status !== "playing") return "Venter p\u00e5 start";
-  const saved = game.canSaveRolls && currentPlayer() ? ` - ${currentPlayer().savedRolls} spart` : "";
+  const baseUsed = Math.min(game.rollsUsed, game.rollLimit);
+  const extraUsed = game.extraRollsUsed || Math.max(0, game.rollsUsed - game.rollLimit);
+  const extra = extraUsed ? ` + ${savedRollText(extraUsed)} brukt` : "";
+  const saved = savedRollMetaHtml(game);
   const ready = game.rollsUsed >= game.scoreReadyRolls ? " - blokka er klar" : "";
-  return `${game.rollsUsed}/${game.rollLimit} kast brukt${ready}${saved}`;
+  return `${baseUsed}/${game.rollLimit} kast brukt${extra}${ready}${saved}`;
+}
+
+function renderRollMeta(game) {
+  if (!els.rollMeta) return;
+  els.rollMeta.innerHTML = rollMetaText(game);
+  els.rollMeta.querySelector("[data-use-saved-roll]")?.addEventListener("click", () => {
+    void action("roll", { useSavedRoll: true });
+  });
+}
+
+function rollButtonText(game) {
+  if (state.isRolling) return "Ruller";
+  if (game.rollsUsed === 0) return "Kast";
+  return game.rollsLeft > 0 ? "Kast igjen" : "Ingen kast";
+}
+
+function savedRollText(count) {
+  return `${count} sjetong${count === 1 ? "" : "er"}`;
+}
+
+function savedRollInlineHtml(count) {
+  return `<span class="roll-meta-chip-icon" aria-hidden="true"></span><span>${escapeHtml(savedRollText(count))}</span>`;
+}
+
+function savedRollMetaHtml(game) {
+  const player = currentPlayer();
+  if (!game.canSaveRolls || !player) return "";
+  const count = player.savedRolls;
+  const enabled = isMyTurn() && game.canUseSavedRoll && !state.pending && !state.isRolling;
+  const title = enabled ? "Bruk sjetong til ekstra kast" : game.rollsLeft > 0 ? "Bruk vanlige kast f\u00f8rst" : "Ekstra kast";
+  const text = savedRollText(count);
+  if (!enabled) return ` - <span class="roll-meta-saved-label">${savedRollInlineHtml(count)}</span>`;
+  return ` - <button class="roll-meta-saved" type="button" data-use-saved-roll title="${escapeHtml(title)}" aria-label="${escapeHtml(`${text}. Bruk en sjetong til ekstra kast`)}">${savedRollInlineHtml(count)}</button>`;
 }
 
 function renderPips(value) {
@@ -1043,7 +1234,9 @@ function renderScoreTable() {
   renderScoreLastMove(latestMove);
   const header = `
     <caption>
-      <span class="score-brand">${escapeHtml(title)}</span>
+      <span class="score-caption-inner">
+        <span class="score-brand">${escapeHtml(title)}</span>
+      </span>
     </caption>
     <colgroup>
       <col class="score-label-col">
@@ -1062,7 +1255,7 @@ function renderScoreTable() {
     <tbody>
       ${upper.map((category) => scoreRow(category)).join("")}
       ${summaryRow("Sum", (player) => player.totals.upper)}
-      ${summaryRow("Bonus", (player) => player.totals.bonus)}
+      ${summaryRow("Bonus", (player) => player.totals.bonus, "total-row", bonusInfoText(game))}
       ${lower.map((category) => scoreRow(category)).join("")}
       ${summaryRow("Totalsum", (player) => player.totals.total, "grand-total")}
     </tbody>
@@ -1103,11 +1296,11 @@ function emptyScoreCells(count, tag = "td") {
   return Array.from({ length: count }, () => `<${tag} class="score-filler-cell"></${tag}>`).join("");
 }
 
-function summaryRow(label, getter, extraClass = "total-row") {
+function summaryRow(label, getter, extraClass = "total-row", info = "") {
   const fillerCount = Math.max(0, scoreGridColumnCount() - state.game.players.length);
   return `
     <tr class="${extraClass}">
-      <td>${escapeHtml(label)}</td>
+      <td>${renderScoreLineLabel(label, "", info)}</td>
       ${state.game.players.map((player) => `<td class="${scorePlayerClass(player)}"><span class="summary-value">${getter(player)}</span></td>`).join("")}
       ${emptyScoreCells(fillerCount)}
     </tr>
@@ -1116,12 +1309,14 @@ function summaryRow(label, getter, extraClass = "total-row") {
 
 function scoreRow(category) {
   const playable = isCategoryPlayable(category);
+  const forcedNext = isForcedNextCategory(category);
   const fillerCount = Math.max(0, scoreGridColumnCount() - state.game.players.length);
   const classes = [
     "score-entry-row",
     `score-${category.section}`,
     `score-row-${category.id}`,
     playable ? "is-playable-row" : "",
+    forcedNext ? "is-forced-next" : "",
     category.id.toLowerCase().includes("yatzy") ? "is-yatzy-row" : ""
   ].filter(Boolean).join(" ");
   return `
@@ -1135,12 +1330,44 @@ function scoreRow(category) {
 
 function isCategoryPlayable(category) {
   const game = state.game;
-  return isMyTurn() && game.rollsUsed >= game.scoreReadyRolls && me()?.scores?.[category.id] === null;
+  const previewAvailable = Object.prototype.hasOwnProperty.call(game.scorePreview, category.id);
+  return (
+    isMyTurn()
+    && game.rollsUsed >= game.scoreReadyRolls
+    && me()?.scores?.[category.id] === null
+    && (!game.forcedMode || game.nextForcedCategoryId === category.id || previewAvailable)
+  );
+}
+
+function isForcedNextCategory(category) {
+  const game = state.game;
+  return Boolean(game?.forcedMode && game.nextForcedCategoryId === category.id);
 }
 
 function renderCategoryLabel(category) {
   const note = categoryNote(category);
-  return `<span class="score-line-label">${categoryIconHtml(category)}${escapeHtml(classicCategoryLabel(category))}${note ? ` <small>${escapeHtml(note)}</small>` : ""}</span>`;
+  return renderScoreLineLabel(classicCategoryLabel(category), categoryIconHtml(category), categoryInfoText(category), note);
+}
+
+function renderScoreLineLabel(label, prefix = "", info = "", note = "") {
+  return `
+    <span class="score-line-label">
+      ${prefix}
+      <span class="score-label-text">${escapeHtml(label)}</span>
+      ${note ? ` <small>${escapeHtml(note)}</small>` : ""}
+      ${info ? renderScoreInfo(info) : ""}
+    </span>
+  `;
+}
+
+function renderScoreInfo(info) {
+  const safeInfo = escapeHtml(info);
+  return `
+    <span class="score-info">
+      <button class="score-info-button" type="button" aria-label="${safeInfo}">?</button>
+      <span class="score-info-popover" role="tooltip">${safeInfo}</span>
+    </span>
+  `;
 }
 
 function categoryIconHtml(category) {
@@ -1187,6 +1414,19 @@ function categoryNote(category) {
   return "";
 }
 
+function bonusInfoText(game) {
+  const settings = effectiveRuleSettings(game);
+  return `Trenger ${settings.upperBonusThreshold} poeng på øvre del. Gir ${settings.upperBonus} bonuspoeng.`;
+}
+
+function categoryInfoText(category) {
+  const settings = effectiveRuleSettings();
+  if (category.id === "yatzy") return `Fem like gir ${settings.yatzyScore} poeng.`;
+  if (category.id === "maxiYatzy") return `Seks like gir ${settings.yatzyScore} poeng.`;
+  if (category.id === "fullStraight") return `Full straight gir ${settings.fullStraightScore} poeng.`;
+  return "";
+}
+
 function scoreCell(player, category) {
   const game = state.game;
   const value = player.scores[category.id];
@@ -1198,7 +1438,7 @@ function scoreCell(player, category) {
     return `<td class="${classes.concat("is-filled").join(" ")}">${content}</td>`;
   }
 
-  const canScore = isMyTurn() && player.seatId === state.seatId && game.rollsUsed >= game.scoreReadyRolls;
+  const canScore = isCategoryPlayable(category) && player.seatId === state.seatId;
   if (!canScore) return `<td class="${classes.join(" ")}"><span class="empty-cell"></span></td>`;
 
   const preview = game.scorePreview[category.id] ?? 0;
@@ -1397,6 +1637,22 @@ els.joinForm.addEventListener("submit", async (event) => {
 });
 
 els.startGame.addEventListener("click", () => action("start"));
+if (els.rulesToggle) {
+  els.rulesToggle.addEventListener("click", () => {
+    state.rulesPanelOpen = !state.rulesPanelOpen;
+    playClickSound();
+    render();
+  });
+}
+if (els.rulesPanel) {
+  els.rulesPanel.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await action("settings", collectRuleSettings());
+  });
+}
+if (els.forcedModeToggle) {
+  els.forcedModeToggle.addEventListener("change", handleForcedModeDraftChange);
+}
 els.rollDice.addEventListener("click", () => action("roll"));
 els.leaveRoom.addEventListener("click", leaveRoom);
 if (els.diceCustomizer) {
