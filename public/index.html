@@ -3,13 +3,26 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Online Yatzy</title>
-    <link rel="stylesheet" href="/styles.css?v=20260708-dice-devices">
+    <title>Yatzy with friends</title>
+    <link rel="stylesheet" href="/styles.css?v=20260709-fantastic-dice-sync">
   </head>
   <body>
     <div class="app">
       <header class="topbar">
-        <a class="brand" href="/">Online Yatzy</a>
+        <a class="brand" href="/">Yatzy with my bestest friends</a>
+        <div class="topbar-room is-hidden" id="topbarRoom">
+          <div class="topbar-room-copy">
+            <strong id="roomTitle">Yatzy</strong>
+            <span aria-hidden="true">&middot;</span>
+            <span id="gameStatus">Lobby</span>
+          </div>
+          <div class="players-list topbar-players" id="playersList"></div>
+          <button class="topbar-code" id="copyLink" type="button" title="Kopier romlink">
+            <span id="roomCodeLabel">-----</span>
+            <span>Kopier link</span>
+          </button>
+          <button class="topbar-leave" id="leaveRoom" type="button">G&aring; ut</button>
+        </div>
         <div class="connection" id="connection">Klar</div>
       </header>
 
@@ -18,7 +31,7 @@
           <form class="panel setup-panel" id="createForm">
             <div>
               <p class="eyebrow">Nytt rom</p>
-              <h1>Start et Yatzy-bord</h1>
+              <h1>Start et nytt Yatzy-bord</h1>
             </div>
 
             <label class="field">
@@ -56,19 +69,19 @@
 
           <form class="panel setup-panel" id="joinForm">
             <div>
-              <p class="eyebrow">Bli med</p>
-              <h2>G&aring; inn i et rom</h2>
+              <p class="eyebrow">Bli med i rom</p>
+              <h2>Bli med på et Yatzy-bord</h2>
             </div>
-
+            <label class="field">
+              <span>Navnet ditt</span>
+              <input id="joinName" name="name" autocomplete="name" maxlength="28" required>
+            </label>
             <label class="field">
               <span>Romkode</span>
               <input id="roomCode" name="code" inputmode="latin-prose" maxlength="5" required>
             </label>
 
-            <label class="field">
-              <span>Navnet ditt</span>
-              <input id="joinName" name="name" autocomplete="name" maxlength="28" required>
-            </label>
+
 
             <button class="secondary action-button" type="submit">Bli med</button>
           </form>
@@ -165,6 +178,10 @@
                 <div class="roll-box">
                   <button class="primary roll-button" id="rollDice" type="button">Kast</button>
                   <div class="roll-meta" id="rollMeta">0 kast brukt</div>
+                  <div class="sync-recovery is-hidden" id="syncRecovery" role="status" aria-live="polite">
+                    <span id="syncRecoveryText">Spillet er synkronisert igjen.</span>
+                    <button class="secondary small" id="syncRecoveryAction" type="button">Kast p&aring; nytt</button>
+                  </div>
                 </div>
               </div>
 
@@ -211,10 +228,14 @@
 
           </section>
 
+          <div class="column-resizer" id="playScoreResizer" role="separator" aria-label="Juster bredden på spillefeltet" aria-orientation="vertical" tabindex="0"></div>
+
           <section class="score-wrap panel">
             <div class="score-last-move is-empty" id="scoreLastMove" aria-live="polite"></div>
             <table class="score-table" id="scoreTable"></table>
           </section>
+
+          <div class="column-resizer" id="scoreRoomResizer" role="separator" aria-label="Juster bredden på høyrepanelet" aria-orientation="vertical" tabindex="0"></div>
 
           <aside class="panel room-flow-panel">
             <section class="compact-section chat-section">
@@ -226,33 +247,14 @@
               </form>
             </section>
 
-            <div class="room-strip">
-              <div class="room-summary">
-                <p class="eyebrow">Rom</p>
-                <div class="room-title-row">
-                  <h2 id="roomTitle">Yatzy</h2>
-                  <div class="status-pill" id="gameStatus">Lobby</div>
-                </div>
-              </div>
-              <section class="compact-section players-section">
-                <h3>Spillere</h3>
-                <div class="players-list" id="playersList"></div>
-              </section>
-              <div class="room-actions">
-                <button class="code-button" id="copyLink" type="button">
-                  <span id="roomCodeLabel">-----</span>
-                  <span>Kopier link</span>
-                </button>
-                <button class="secondary small" id="leaveRoom" type="button">G&aring; ut</button>
-              </div>
+            <div class="flow-resizer" id="chatFlowResizer" role="separator" aria-label="Juster høyden på chat og flyt" aria-orientation="horizontal" tabindex="0">
+              <span aria-hidden="true"></span>
             </div>
 
-            <div class="room-flow-grid">
-              <section class="compact-section flow-section">
-                <h3>Flyt</h3>
-                <ol class="game-log" id="gameLog"></ol>
-              </section>
-            </div>
+            <section class="compact-section flow-section">
+              <h3>Flyt</h3>
+              <ol class="game-log" id="gameLog"></ol>
+            </section>
           </aside>
         </section>
       </main>
@@ -260,6 +262,6 @@
 
     <div class="celebration-layer" id="celebrationLayer" aria-hidden="true"></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js?v=20260708-dice-devices" defer></script>
+    <script src="/app.js?v=20260709-threejs-forced-outcomes" defer></script>
   </body>
 </html>

@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+process.env.ALLOW_TEST_DICE = "true";
 const { server } = require("../server");
 
 function listen() {
@@ -26,7 +27,7 @@ async function post(baseUrl, path, body) {
   return { response, payload };
 }
 
-test("accepts visual dice results but protects held dice", async () => {
+test("test-only dice fixtures still protect held dice", async () => {
   const baseUrl = await listen();
   try {
     const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
@@ -47,7 +48,16 @@ test("accepts visual dice results but protects held dice", async () => {
     });
     assert.equal(rolled.response.status, 200);
     assert.deepEqual(rolled.payload.game.dice, [1, 2, 3, 4, 5]);
+    assert.equal(rolled.payload.game.log[0].type, "roll");
+    assert.deepEqual(rolled.payload.game.log[0].rolledDice, [1, 2, 3, 4, 5]);
     game = rolled.payload.game;
+
+    const staleHold = await post(baseUrl, `/api/games/${game.code}/hold`, {
+      playerToken,
+      version: game.version - 1,
+      index: 0
+    });
+    assert.equal(staleHold.response.status, 409);
 
     const held = await post(baseUrl, `/api/games/${game.code}/hold`, {
       playerToken,
@@ -55,6 +65,8 @@ test("accepts visual dice results but protects held dice", async () => {
       index: 0
     });
     assert.equal(held.response.status, 200);
+    assert.equal(held.payload.game.log[0].type, "hold");
+    assert.deepEqual(held.payload.game.log[0].heldDice, [1]);
     game = held.payload.game;
 
     const invalidRoll = await post(baseUrl, `/api/games/${game.code}/roll`, {
@@ -63,6 +75,80 @@ test("accepts visual dice results but protects held dice", async () => {
       dice: [6, 2, 3, 4, 5]
     });
     assert.equal(invalidRoll.response.status, 400);
+  } finally {
+    await close();
+  }
+});
+
+test("rejects client-supplied dice outside test fixture mode", async () => {
+  const baseUrl = await listen();
+  const previousSetting = process.env.ALLOW_TEST_DICE;
+  delete process.env.ALLOW_TEST_DICE;
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    let { game, playerToken } = created.payload;
+    const started = await post(baseUrl, `/api/games/${game.code}/start`, {
+      playerToken,
+      version: game.version
+    });
+    game = started.payload.game;
+
+    const forged = await post(baseUrl, `/api/games/${game.code}/roll`, {
+      playerToken,
+      version: game.version,
+      dice: [6, 6, 6, 6, 6]
+    });
+    assert.equal(forged.response.status, 400);
+    assert.match(forged.payload.error, /serveren/);
+  } finally {
+    process.env.ALLOW_TEST_DICE = previousSetting;
+    await close();
+  }
+});
+
+test("announces a server-authoritative roll before committing its forced visual result", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    let { game, playerToken } = created.payload;
+
+    const started = await post(baseUrl, `/api/games/${game.code}/start`, {
+      playerToken,
+      version: game.version
+    });
+    game = started.payload.game;
+
+    const planned = await post(baseUrl, `/api/games/${game.code}/roll`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(planned.response.status, 200);
+    game = planned.payload.game;
+    assert.deepEqual(game.activeRoll.diceIndexes, [0, 1, 2, 3, 4]);
+    assert.equal(game.activeRoll.values.length, 5);
+    assert.ok(game.activeRoll.values.every((value) => Number.isInteger(value) && value >= 1 && value <= 6));
+    assert.deepEqual(game.activeRoll.dice, game.activeRoll.values);
+    assert.ok(game.activeRoll.startsAt > Date.parse(game.activeRoll.startedAt));
+    assert.deepEqual(game.dice, []);
+    assert.equal(game.rollsUsed, 0);
+    const plannedDice = [...game.activeRoll.dice];
+
+    const blockedHold = await post(baseUrl, `/api/games/${game.code}/hold`, {
+      playerToken,
+      version: game.version,
+      index: 0
+    });
+    assert.equal(blockedHold.response.status, 409);
+
+    const completed = await post(baseUrl, `/api/games/${game.code}/complete`, {
+      playerToken,
+      rollId: game.activeRoll.id,
+      dice: [6, 6, 6, 6, 6]
+    });
+    assert.equal(completed.response.status, 200);
+    assert.equal(completed.payload.game.activeRoll, null);
+    assert.deepEqual(completed.payload.game.dice, plannedDice);
+    assert.equal(completed.payload.game.rollsUsed, 1);
   } finally {
     await close();
   }

@@ -1,4 +1,4 @@
-# Online Yatzy
+# Online Yatzy with friends
 
 A small realtime Yatzy app for private rooms. It supports:
 
@@ -8,7 +8,7 @@ A small realtime Yatzy app for private rooms. It supports:
 - Any number of players in the lobby before the game starts.
 - Private room links, no accounts, reconnect from the same browser.
 - Server-owned turns, dice rolls, scoring, and version checks for stale clicks.
-- Dice roll animation, browser-generated sounds, and local dice theme preferences.
+- Synchronized Fantastic Dice Three.js animations with server-forced outcomes, plus local dice theme preferences.
 
 ## Run Locally
 
@@ -19,7 +19,7 @@ npm run dev
 
 Open `http://localhost:5173`.
 
-This app currently has no runtime npm dependencies, so `npm install` only creates the lockfile if you want one.
+`npm install` installs the Fantastic Dice Three.js renderer used by the browser.
 
 ## Online Play
 

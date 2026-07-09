@@ -7,6 +7,7 @@ const els = {
   createName: document.querySelector("#createName"),
   joinName: document.querySelector("#joinName"),
   roomCode: document.querySelector("#roomCode"),
+  topbarRoom: document.querySelector("#topbarRoom"),
   roomTitle: document.querySelector("#roomTitle"),
   roomCodeLabel: document.querySelector("#roomCodeLabel"),
   copyLink: document.querySelector("#copyLink"),
@@ -37,6 +38,9 @@ const els = {
   heldDiceLabel: document.querySelector("#heldDiceLabel"),
   rollDice: document.querySelector("#rollDice"),
   rollMeta: document.querySelector("#rollMeta"),
+  syncRecovery: document.querySelector("#syncRecovery"),
+  syncRecoveryText: document.querySelector("#syncRecoveryText"),
+  syncRecoveryAction: document.querySelector("#syncRecoveryAction"),
   diceCustomizer: document.querySelector("#diceCustomizer"),
   soundToggle: document.querySelector("#soundToggle"),
   scoreLastMove: document.querySelector("#scoreLastMove"),
@@ -46,6 +50,9 @@ const els = {
   chatInput: document.querySelector("#chatInput"),
   chatList: document.querySelector("#chatList"),
   sendChat: document.querySelector("#sendChat"),
+  playScoreResizer: document.querySelector("#playScoreResizer"),
+  scoreRoomResizer: document.querySelector("#scoreRoomResizer"),
+  chatFlowResizer: document.querySelector("#chatFlowResizer"),
   celebrationLayer: document.querySelector("#celebrationLayer"),
   toast: document.querySelector("#toast")
 };
@@ -59,6 +66,7 @@ const state = {
   chatPending: false,
   pendingIncomingGame: null,
   incomingRollFinishing: false,
+  syncIssue: null,
   toastTimer: null,
   celebrationTimer: null,
   celebratedYatzies: new Set(),
@@ -79,8 +87,9 @@ const state = {
     rollPromise: null,
     settlePromise: null,
     settleResolve: null,
-    rollId: 0,
-    hideTimer: null
+    forcedValues: [],
+    startsAt: null,
+    rollId: 0
   },
   soundEnabled: loadSoundEnabled(),
   audioContext: null,
@@ -93,7 +102,6 @@ const state = {
 };
 
 const DICE_THEMES = new Set(["default", "wooden", "blueGreenMetal", "rock", "smooth", "smooth-pip", "lavender", "gold", "glitter", "yellow"]);
-const ROLL_ANIMATION_MS = 650;
 const ROLL_SOUND_PATH = "/assets/sounds/dice-roll.mp3";
 const SOUND_PATHS = {
   click: "/assets/sounds/click.mp3",
@@ -103,38 +111,42 @@ const SOUND_PATHS = {
   crossOutYatzy: "/assets/sounds/someone-crosses-out-yatzy.mp3",
   yatzy: "/assets/sounds/yatzy-yippee.mp3"
 };
-const DICE_3D_MODULE_PATH = "/vendor/dice-box/dice-box.es.min.js";
-const DICE_3D_ASSET_PATH = "/assets/";
-const DICE_3D_MIN_ROLL_MS = 980;
+const DICE_3D_MODULE_PATH = "/vendor/dice-box-threejs/dice-box-threejs.es.js";
+const DICE_3D_ASSET_PATH = "/vendor/dice-box-threejs/";
 const DICE_3D_START_TIMEOUT_MS = 8000;
 const DICE_3D_ROLL_TIMEOUT_MS = 16000;
-const DICE_3D_SETTLE_PAD_MS = 750;
+const DICE_3D_SETTLE_PAD_MS = 350;
 const ROLL_RESULT_HOLD_MS = 700;
 const DICE_3D_PHYSICS = {
-  gravity: 2,
-  mass: 1,
-  friction: 0.8,
-  restitution: 0.1,
-  angularDamping: 0.2,
-  linearDamping: 0.4,
-  spinForce: 4.5,
-  throwForce: 5,
-  startingHeight: 8,
-  settleTimeout: 9000,
-  delay: 100,
-  scale: 9
+  framerate: 1 / 60,
+  gravity_multiplier: 400,
+  strength: 0.82,
+  baseScale: 68,
+  light_intensity: 0.78,
+  shadows: true,
+  sounds: false,
+  theme_surface: "taverntable"
 };
-const DICE_3D_THEME_COLORS = {
-  default: "#f8f3e6",
-  wooden: "#8b5e34",
-  blueGreenMetal: "#4faeaa",
-  rock: "#b7aca1",
-  smooth: "#e6a1c7",
-  "smooth-pip": "#ffffff",
-  lavender: "#c7a7ff",
-  gold: "#f1bb45",
-  glitter: "#f8d66d",
-  yellow: "#ffefaa"
+const DICE_3D_THROW_BOUNDS = {
+  wallX: 0.58,
+  wallY: 0.46,
+  spawnX: 0.46,
+  spawnY: 0.34,
+  velocity: 0.74,
+  lift: 0.82
+};
+const DICE_3D_DIE_RADIUS = DICE_3D_PHYSICS.baseScale * 1.5;
+const DICE_3D_THEMES = {
+  default: { foreground: "#171714", background: "#f8f3e6", outline: "#f8f3e6", texture: "none", material: "plastic" },
+  wooden: { foreground: "#241407", background: "#a66f3c", outline: "#d7a36d", texture: "wood", material: "wood" },
+  blueGreenMetal: { foreground: "#e9fbf7", background: "#398d88", outline: "#184f4d", texture: "metal", material: "metal" },
+  rock: { foreground: "#29231f", background: "#b7aca1", outline: "#777068", texture: "stone", material: "none" },
+  smooth: { foreground: "#4d263b", background: "#e6a1c7", outline: "#f4c9df", texture: "none", material: "plastic" },
+  "smooth-pip": { foreground: "#191919", background: "#ffffff", outline: "#ffffff", texture: "none", material: "plastic" },
+  lavender: { foreground: "#38235b", background: "#c7a7ff", outline: "#e0d1ff", texture: "none", material: "plastic" },
+  gold: { foreground: "#4b3100", background: "#f1bb45", outline: "#ffe49a", texture: "metal", material: "metal" },
+  glitter: { foreground: "#4f3800", background: "#f8d66d", outline: "#fff1ad", texture: "glitter", material: "plastic" },
+  yellow: { foreground: "#4c3a00", background: "#ffefaa", outline: "#fff8d5", texture: "none", material: "plastic" }
 };
 const YATZY_CATEGORY_IDS = new Set(["yatzy", "maxiYatzy"]);
 const CONFETTI_COLORS = ["#f4bf3f", "#e45c4f", "#1d8a70", "#2f6df6", "#ffffff"];
@@ -211,7 +223,10 @@ async function requestJson(url, options = {}) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error || "Noe gikk galt.");
+    const error = new Error(payload.error || "Noe gikk galt.");
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
   }
   return payload;
 }
@@ -256,37 +271,28 @@ async function joinGame(code, name, playerToken = null) {
 
 async function action(name, extra = {}) {
   if (!state.game || state.pending) return;
-  const isRoll = name === "roll";
-  const startedAt = Date.now();
+  if (name === "roll") {
+    await synchronizedRoll(extra);
+    return;
+  }
+
   const previousGame = state.game;
-  let rollAnimationId = null;
-  let rollDiceValues = null;
   state.pending = true;
-  if (isRoll) {
-    rollAnimationId = startRollAnimation(state.game, { context: "local" });
-    playRollSound();
-  } else if (name === "settings") {
+  state.syncIssue = null;
+  if (name === "settings") {
     state.game = { ...state.game, ...extra };
   }
   render();
   try {
-    if (isRoll) {
-      rollDiceValues = await diceValuesFromRollVisual();
-    }
     const payload = await requestJson(`/api/games/${state.game.code}/${name}`, {
       method: "POST",
       body: JSON.stringify({
         playerToken: state.playerToken,
         version: state.game.version,
-        ...(rollDiceValues ? { dice: rollDiceValues } : {}),
         ...extra
       })
     });
-    if (isRoll) {
-      await waitForRollVisual(startedAt);
-      stopRollAnimation(rollAnimationId);
-      state.game = payload.game;
-    } else if (name === "score") {
+    if (name === "score") {
       playGameTransitionSounds(previousGame, payload.game);
       maybeCelebrateYatzy(previousGame, payload.game);
       state.game = payload.game;
@@ -303,11 +309,111 @@ async function action(name, extra = {}) {
     }
   } catch (error) {
     if (name === "settings") state.game = previousGame;
-    showToast(error.message);
+    if (error.status === 409) {
+      await recoverFromDesync(name);
+    } else {
+      showToast(error.message);
+    }
   } finally {
-    if (isRoll && state.rollContext === "local") stopRollAnimation(rollAnimationId);
     state.pending = false;
     render();
+  }
+}
+
+async function synchronizedRoll(extra = {}) {
+  if (!state.game || state.pending || !canRollDice()) return;
+  const previousGame = state.game;
+  let rollPlan = null;
+  let animationId = null;
+  state.pending = true;
+  state.syncIssue = null;
+  render();
+
+  try {
+    const planned = await requestJson(`/api/games/${previousGame.code}/roll`, {
+      method: "POST",
+      body: JSON.stringify({
+        playerToken: state.playerToken,
+        version: previousGame.version,
+        ...extra
+      })
+    });
+    rollPlan = planned.game.activeRoll;
+    if (!rollPlan) throw new Error("Serveren opprettet ikke terningkastet.");
+
+    state.game = planned.game;
+    animationId = startRollAnimation(planned.game, { context: "local" });
+    playRollSound();
+    render();
+
+    const visualDice = await diceValuesFromRollVisual();
+    if (!visualDice || !isCurrentRollAnimation(animationId)) {
+      throw new Error("Fantastic Dice fullf\u00f8rte ikke det serverbestemte kastet.");
+    }
+
+    stopRollAnimation(animationId);
+    const completed = await requestJson(`/api/games/${previousGame.code}/complete`, {
+      method: "POST",
+      body: JSON.stringify({
+        playerToken: state.playerToken,
+        rollId: rollPlan.id
+      })
+    });
+    state.game = completed.game;
+    const queuedGame = takeQueuedIncomingGame(completed.game.version);
+    if (queuedGame) state.game = queuedGame;
+  } catch (error) {
+    if (animationId !== null && isCurrentRollAnimation(animationId)) {
+      stopRollAnimation(animationId);
+    }
+    if (rollPlan) await cancelSynchronizedRoll(rollPlan.id);
+    if (error.status === 409) {
+      await recoverFromDesync("roll");
+    } else {
+      showToast(error.message);
+    }
+  } finally {
+    state.pending = false;
+    render();
+  }
+}
+
+async function cancelSynchronizedRoll(rollId) {
+  if (!state.game || !rollId) return;
+  try {
+    const payload = await requestJson(`/api/games/${state.game.code}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ playerToken: state.playerToken, rollId })
+    });
+    state.game = payload.game;
+  } catch {
+    // The server may already have repaired or completed the roll.
+  }
+}
+
+async function recoverFromDesync(actionName) {
+  if (!state.game) return;
+  try {
+    const payload = await requestJson(`/api/games/${state.game.code}`);
+    cancelIncomingRollAnimation();
+    state.game = payload.game;
+    const canRetryRoll = actionName === "roll"
+      && payload.game.status === "playing"
+      && payload.game.currentSeatId === state.seatId
+      && payload.game.rollsLeft > 0;
+    state.syncIssue = {
+      canRetryRoll,
+      message: canRetryRoll
+        ? "En oppdatering kom samtidig. Ingen kast ble brukt — du kan kaste på nytt."
+        : "Spillet var ute av takt. Siste servertilstand er hentet inn."
+    };
+    showToast("Synkronisert med rommet.");
+  } catch (error) {
+    state.syncIssue = {
+      canRetryRoll: false,
+      message: "Kunne ikke reparere automatisk. Kobler til rommet igjen."
+    };
+    connectEvents(state.game.code);
   }
 }
 
@@ -361,7 +467,7 @@ function receiveGameState(nextGame) {
 
 function shouldQueueIncomingGame(nextGame) {
   if (!state.game || state.game.code !== nextGame.code) return false;
-  return (state.rollContext === "incoming" && state.isRolling) || state.incomingRollFinishing;
+  return state.isRolling || state.incomingRollFinishing;
 }
 
 function queueIncomingGame(nextGame) {
@@ -427,7 +533,7 @@ function isMyTurn() {
 }
 
 function canRollDice() {
-  return Boolean(state.game && isMyTurn() && state.game.rollsLeft > 0 && !state.pending && !state.isRolling);
+  return Boolean(state.game && isMyTurn() && state.game.rollsLeft > 0 && !state.game.activeRoll && !state.pending && !state.isRolling);
 }
 
 function diceCount() {
@@ -443,37 +549,45 @@ function randomDie() {
   return Math.floor(Math.random() * 6) + 1;
 }
 
-function prefersReducedMotion() {
-  return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
-}
-
 function currentDiceTheme() {
   return document.body.dataset.diceTheme || loadDiceTheme();
 }
 
-function dice3dThemeColor(theme = currentDiceTheme()) {
-  return DICE_3D_THEME_COLORS[theme] || DICE_3D_THEME_COLORS.default;
+function dice3dThemeConfig(theme = currentDiceTheme()) {
+  const selected = DICE_3D_THEMES[theme] || DICE_3D_THEMES.default;
+  return {
+    theme_customColorset: {
+      name: `yatzy-${theme}`,
+      foreground: selected.foreground,
+      background: selected.background,
+      outline: selected.outline,
+      texture: selected.texture,
+      material: selected.material
+    },
+    theme_colorset: "white",
+    theme_texture: selected.texture,
+    theme_material: selected.material
+  };
 }
 
 function prepareDice3d() {
-  if (!els.dice3dStage || state.dice3d.ready || state.dice3d.failed || prefersReducedMotion()) return state.dice3d.initPromise;
+  if (!els.dice3dStage || state.dice3d.ready || state.dice3d.failed) return state.dice3d.initPromise;
   if (state.dice3d.loading) return state.dice3d.initPromise;
 
   state.dice3d.loading = true;
   state.dice3d.initPromise = import(DICE_3D_MODULE_PATH)
     .then(({ default: DiceBox }) => {
-      const diceBox = new DiceBox({
-        container: "#dice3dStage",
+      const diceBox = new DiceBox("#dice3dStage", {
         assetPath: DICE_3D_ASSET_PATH,
         ...dice3dConfig(),
-        onRollComplete: () => markDice3dRollComplete(),
-        offscreen: false
+        onRollComplete: () => markDice3dRollComplete()
       });
       state.dice3d.instance = diceBox;
-      return diceBox.init();
+      return diceBox.initialize();
     })
     .then(async () => {
       state.dice3d.ready = true;
+      bindDice3dThrowBounds();
       bindDice3dContextFallback();
       await synchronizeDice3dSize();
       await syncDice3dTheme();
@@ -499,7 +613,6 @@ function canUseDice3d() {
     && state.dice3d.instance
     && state.dice3d.ready
     && !state.dice3d.failed
-    && !prefersReducedMotion()
   );
 }
 
@@ -509,7 +622,7 @@ function setDice3dVisible(visible) {
 }
 
 function shouldUseDice3dVisual() {
-  return Boolean(state.rollContext === "local" && state.isRolling && state.dice3d.visible && canUseDice3d());
+  return Boolean(state.isRolling && state.dice3d.visible && canUseDice3d());
 }
 
 function shouldShow2dRollAnimation() {
@@ -522,15 +635,14 @@ function activeRollCount() {
   return Array.from({ length: count }, (_, index) => !state.game.held[index]).filter(Boolean).length;
 }
 
-function dice3dRollNotation(count, theme = currentDiceTheme()) {
-  return theme === "smooth-pip" ? `${count}dpip` : `${count}d6`;
+function dice3dRollNotation(values) {
+  return `${values.length}dpip@${values.join(",")}`;
 }
 
 function dice3dConfig(theme = currentDiceTheme()) {
   return {
     ...DICE_3D_PHYSICS,
-    theme,
-    themeColor: dice3dThemeColor(theme)
+    ...dice3dThemeConfig(theme)
   };
 }
 
@@ -542,6 +654,7 @@ async function synchronizeDice3dSize() {
   window.dispatchEvent(new Event("resize"));
   await nextAnimationFrame();
   await nextAnimationFrame();
+  constrainDice3dWorld();
 }
 
 function dice3dCanvasHasSize() {
@@ -564,28 +677,89 @@ function bindDice3dContextFallback() {
   }, { once: true });
 }
 
+function bindDice3dThrowBounds() {
+  const diceBox = state.dice3d.instance;
+  if (!diceBox || diceBox.yatzyThrowBoundsBound || typeof diceBox.startClickThrow !== "function") return;
+
+  const originalStartClickThrow = diceBox.startClickThrow.bind(diceBox);
+  diceBox.startClickThrow = (notation) => {
+    constrainDice3dWorld();
+    const notationVectors = originalStartClickThrow(notation);
+    return constrainDice3dNotationVectors(notationVectors, diceBox);
+  };
+  diceBox.yatzyThrowBoundsBound = true;
+}
+
+function dice3dThrowLimits(diceBox = state.dice3d.instance) {
+  const width = Number(diceBox?.display?.containerWidth) || els.dice3dStage?.clientWidth || 0;
+  const height = Number(diceBox?.display?.containerHeight) || els.dice3dStage?.clientHeight || 0;
+  const radius = DICE_3D_DIE_RADIUS;
+
+  return {
+    wallX: clamp(width * DICE_3D_THROW_BOUNDS.wallX, radius * 1.15, width - radius * 1.1),
+    wallY: clamp(height * DICE_3D_THROW_BOUNDS.wallY, radius, height - radius * 1.08),
+    spawnX: clamp(width * DICE_3D_THROW_BOUNDS.spawnX, radius * 0.9, width - radius * 1.45),
+    spawnY: clamp(height * DICE_3D_THROW_BOUNDS.spawnY, radius * 0.72, height - radius * 1.45),
+    minZ: radius * 1.8,
+    maxZ: radius * 3.2
+  };
+}
+
+function constrainDice3dWorld() {
+  const diceBox = state.dice3d.instance;
+  if (!diceBox?.box_body || !diceBox.display) return;
+
+  const { wallX, wallY } = dice3dThrowLimits(diceBox);
+  diceBox.box_body.leftWall?.position.set(wallX, 0, 0);
+  diceBox.box_body.rightWall?.position.set(-wallX, 0, 0);
+  diceBox.box_body.topWall?.position.set(0, wallY, 0);
+  diceBox.box_body.bottomWall?.position.set(0, -wallY, 0);
+}
+
+function constrainDice3dNotationVectors(notationVectors, diceBox = state.dice3d.instance) {
+  if (!notationVectors?.vectors?.length) return notationVectors;
+
+  const limits = dice3dThrowLimits(diceBox);
+  notationVectors.vectors.forEach((vector, index) => {
+    if (!vector?.pos || !vector?.velocity || !vector?.angle) return;
+    const laneOffset = ((index % 3) - 1) * DICE_3D_PHYSICS.baseScale * 0.32;
+
+    vector.pos.x = clamp(vector.pos.x, -limits.spawnX, limits.spawnX);
+    vector.pos.y = clamp(vector.pos.y + laneOffset, -limits.spawnY, limits.spawnY);
+    vector.pos.z = clamp(vector.pos.z, limits.minZ, limits.maxZ);
+    vector.velocity.x *= DICE_3D_THROW_BOUNDS.velocity;
+    vector.velocity.y *= DICE_3D_THROW_BOUNDS.velocity;
+    vector.velocity.z *= DICE_3D_THROW_BOUNDS.lift;
+    vector.angle.x *= DICE_3D_THROW_BOUNDS.velocity;
+    vector.angle.y *= DICE_3D_THROW_BOUNDS.velocity;
+  });
+
+  return notationVectors;
+}
+
 async function startDice3dRoll() {
   const rollId = state.dice3d.rollId;
-  clearStaticDice3d();
   setDice3dVisible(true);
   await prepareDice3d();
   if (rollId !== state.dice3d.rollId) return false;
   if (!state.isRolling) return false;
   if (!canUseDice3d()) return false;
+  const delay = Math.max(0, Number(state.dice3d.startsAt || 0) - Date.now());
+  if (delay) await wait(delay);
+  if (rollId !== state.dice3d.rollId || !state.isRolling || !canUseDice3d()) return false;
   await synchronizeDice3dSize();
   if (rollId !== state.dice3d.rollId || !state.isRolling || !canUseDice3d()) return false;
 
   const count = activeRollCount();
-  if (!count) return false;
+  const values = state.dice3d.forcedValues;
+  if (!count || values.length !== count) return false;
 
-  window.clearTimeout(state.dice3d.hideTimer);
   setDice3dVisible(true);
   createDice3dSettlePromise(rollId);
   await syncDice3dTheme();
   try {
-    const theme = currentDiceTheme();
     state.dice3d.rollPromise = state.dice3d.instance
-      .roll(dice3dRollNotation(count, theme), { theme, themeColor: dice3dThemeColor(theme), newStartPoint: true })
+      .roll(dice3dRollNotation(values))
       .catch((error) => {
         console.warn("3D dice roll failed:", error);
         state.dice3d.failed = true;
@@ -617,20 +791,15 @@ function markDice3dRollComplete() {
 
 async function syncDice3dTheme(theme = currentDiceTheme()) {
   if (!canUseDice3d()) return;
-  return state.dice3d.instance.updateConfig(dice3dConfig(theme)).catch((error) => {
+  const config = dice3dThemeConfig(theme);
+  Object.assign(state.dice3d.instance, config);
+  return state.dice3d.instance.loadTheme({
+    colorset: config.theme_colorset,
+    texture: config.theme_texture,
+    material: config.theme_material
+  }).catch((error) => {
     console.warn("3D dice theme update failed:", error);
   });
-}
-
-async function waitForRollVisual(startedAt) {
-  const rollId = state.dice3d.rollId;
-  if (state.dice3d.startPromise) {
-    const didStart = await Promise.race([state.dice3d.startPromise.catch(() => false), wait(DICE_3D_START_TIMEOUT_MS).then(() => false)]);
-    if (!didStart) cancelDice3dRoll(rollId);
-  }
-  if (state.dice3d.visible && state.dice3d.rollPromise) await waitForDice3dRollToSettle();
-  const duration = state.dice3d.visible ? DICE_3D_MIN_ROLL_MS : ROLL_ANIMATION_MS;
-  await wait(Math.max(0, duration - (Date.now() - startedAt)));
 }
 
 function isCurrentRollAnimation(animationId) {
@@ -650,7 +819,13 @@ async function diceValuesFromRollVisual() {
 
   const results = await waitForDice3dRollToSettle();
   const values = rollResultValues(results);
-  if (!values.length) return null;
+  if (
+    values.length !== state.dice3d.forcedValues.length
+    || values.some((value, index) => value !== state.dice3d.forcedValues[index])
+  ) {
+    return null;
+  }
+  els.dice3dStage.dataset.rollValues = values.join(",");
 
   return mergeRolledValues(values);
 }
@@ -665,8 +840,9 @@ async function waitForDice3dRollToSettle() {
 }
 
 function rollResultValues(results) {
-  if (!Array.isArray(results)) return [];
-  return results
+  const groups = Array.isArray(results) ? results : results?.sets;
+  if (!Array.isArray(groups)) return [];
+  return groups
     .flatMap((group) => Array.isArray(group?.rolls) ? group.rolls : [group])
     .map((die) => Number(die?.value))
     .filter((value) => Number.isInteger(value) && value >= 1 && value <= 6);
@@ -693,11 +869,9 @@ function mergeRolledValues(values) {
 }
 
 function finishDice3dRoll() {
-  window.clearTimeout(state.dice3d.hideTimer);
   state.dice3d.rollPromise = null;
   state.dice3d.settlePromise = null;
   state.dice3d.settleResolve = null;
-  clearStaticDice3d();
   if (state.game?.dice.length) setDice3dVisible(true);
 }
 
@@ -708,55 +882,51 @@ function cancelDice3dRoll(rollId = state.dice3d.rollId) {
   state.dice3d.rollPromise = null;
   state.dice3d.settlePromise = null;
   state.dice3d.settleResolve = null;
+  state.dice3d.forcedValues = [];
+  state.dice3d.startsAt = null;
   setDice3dVisible(false);
   clearDice3dInstance();
 }
 
 function clearDice3dStage() {
-  window.clearTimeout(state.dice3d.hideTimer);
   state.dice3d.rollId += 1;
   state.dice3d.startPromise = null;
   state.dice3d.rollPromise = null;
   state.dice3d.settlePromise = null;
   state.dice3d.settleResolve = null;
-  clearStaticDice3d();
+  state.dice3d.forcedValues = [];
+  state.dice3d.startsAt = null;
   setDice3dVisible(false);
   clearDice3dInstance();
 }
 
 function clearDice3dInstance() {
   try {
-    state.dice3d.instance?.clear?.();
+    state.dice3d.instance?.clearDice?.();
   } catch (error) {
-    // Dice-box can briefly expose an instance before its world clear API is ready.
+    // Dice-box can briefly expose an instance before its scene is ready.
   }
-}
-
-function clearStaticDice3d() {
-  if (!els.dice3dStage) return;
-  els.dice3dStage.classList.remove("has-static-dice");
-  els.dice3dStage.querySelector(".dice-3d-static")?.remove();
-}
-
-function syncDice3dVisualState() {
-  clearStaticDice3d();
 }
 
 function startRollAnimation(animationGame = state.game, { context = "local" } = {}) {
   if (!animationGame) return;
   window.clearInterval(state.rollTimer);
-  clearStaticDice3d();
   state.rollAnimationId += 1;
   const animationId = state.rollAnimationId;
   state.rollContext = context;
+  state.dice3d.forcedValues = Array.isArray(animationGame.activeRoll?.values)
+    ? [...animationGame.activeRoll.values]
+    : [];
+  state.dice3d.startsAt = animationGame.activeRoll?.startsAt || null;
   state.dice3d.rollId += 1;
+  delete els.dice3dStage.dataset.rollValues;
   const count = animationGame.mode === "maxi" ? 6 : 5;
   const held = animationGame.held.slice(0, count);
   const currentDice = animationGame.dice.length ? animationGame.dice : Array.from({ length: count }, () => randomDie());
   state.animatedDice = currentDice.map((value, index) => (held[index] ? value : randomDie()));
   state.isRolling = true;
   renderDice();
-  if (context === "local") {
+  if (context === "local" || context === "incoming") {
     state.dice3d.startPromise = startDice3dRoll().then((didStart) => {
       if (isCurrentRollAnimation(animationId)) renderDice();
       return didStart;
@@ -794,26 +964,38 @@ function cancelIncomingRollAnimation() {
 
 function shouldAnimateIncomingRoll(previous, next) {
   if (!previous || state.pending || state.isRolling || state.incomingRollFinishing) return false;
-  if (next.status !== "playing" || !next.dice.length || next.rollsUsed <= 0) return false;
+  if (next.status !== "playing" || !next.activeRoll) return false;
   if (previous.currentSeatId !== next.currentSeatId) return false;
-  return previous.dice.join(",") !== next.dice.join(",") && next.rollsUsed >= previous.rollsUsed;
+  return previous.activeRoll?.id !== next.activeRoll.id;
 }
 
-async function animateIncomingRoll(previousGame, nextGame) {
-  const startedAt = Date.now();
-  if (!previousGame || !nextGame) return;
-  state.game = previousGame;
-  const animationId = startRollAnimation(previousGame, { context: "incoming" });
+async function animateIncomingRoll(previousGame, rollPlanGame) {
+  if (!previousGame || !rollPlanGame?.activeRoll) return;
+  state.game = rollPlanGame;
+  const animationId = startRollAnimation(rollPlanGame, { context: "incoming" });
   playRollSound(0.55);
-  await waitForRollVisual(startedAt);
+  const visualDice = await diceValuesFromRollVisual();
   if (!isCurrentRollAnimation(animationId)) return;
   state.incomingRollFinishing = true;
   stopRollAnimation(animationId);
   try {
-    if (state.game && state.game.version > nextGame.version) return;
-    state.game = nextGame;
+    const queuedGame = takeQueuedIncomingGame(rollPlanGame.version);
+    if (queuedGame) {
+      state.game = queuedGame;
+      if (visualDice && queuedGame.dice.length && visualDice.join(",") !== queuedGame.dice.join(",")) {
+        state.syncIssue = {
+          canRetryRoll: false,
+          message: "3D-kastet avvek fra rommet. Kastet må repareres før spillet fortsetter."
+        };
+      }
+    } else if (visualDice) {
+      state.game = {
+        ...rollPlanGame,
+        dice: visualDice,
+        rollsUsed: rollPlanGame.rollsUsed + 1
+      };
+    }
     render();
-    await flushQueuedIncomingGame(nextGame);
   } finally {
     state.incomingRollFinishing = false;
   }
@@ -995,8 +1177,7 @@ function applyDiceTheme(theme) {
   document.body.dataset.diceTheme = safeTheme;
   saveDiceTheme(safeTheme);
   if (!state.isRolling) {
-    clearDice3dStage();
-    syncDice3dTheme(safeTheme);
+    if (!state.game?.dice.length) syncDice3dTheme(safeTheme);
     if (state.game) renderDice();
   }
   renderDiceCustomizer();
@@ -1028,6 +1209,7 @@ function render() {
   document.body.classList.toggle("is-my-turn", myTurn);
   els.setupView.classList.toggle("is-hidden", hasGame);
   els.gameView.classList.toggle("is-hidden", !hasGame);
+  els.topbarRoom?.classList.toggle("is-hidden", !hasGame);
   els.gameView.classList.toggle("is-my-turn", myTurn);
   els.createName.value ||= loadName();
   els.joinName.value ||= loadName();
@@ -1044,6 +1226,7 @@ function render() {
   renderScoreTable();
   renderLog();
   renderChat();
+  renderSyncRecovery();
   renderDiceCustomizer();
   renderGameOverOverlay();
 }
@@ -1169,9 +1352,9 @@ function renderPlayers() {
     .map((player) => {
       const mine = player.seatId === state.seatId ? " deg" : "";
       return `
-        <div class="player-item ${player.seatId === game.currentSeatId ? "is-current" : ""}">
+        <div class="player-item ${player.seatId === game.currentSeatId ? "is-current" : ""}" title="${escapeHtml(player.name)}${player.seatId === game.currentSeatId ? " · spiller nå" : ""}">
           <div class="avatar">${escapeHtml(initials(player.name))}</div>
-          <div>
+          <div class="player-copy">
             <div class="player-name">${escapeHtml(player.name)}${mine ? `<span class="player-meta">${mine}</span>` : ""}</div>
           </div>
         </div>
@@ -1213,13 +1396,12 @@ function renderDice() {
       ? game.dice
       : Array.from({ length: count }, () => 0);
 
-  const diceEntries = dice.map((value, index) => ({
-    value,
-    index,
-    held: Boolean(game.held[index])
-  }));
-
-  syncDice3dVisualState();
+  const diceEntries = dice
+    .map((value, index) => ({
+      value,
+      index,
+      held: Boolean(game.held[index])
+    }));
 
   if (hasSplitDiceLayout()) {
     renderSplitDice(diceEntries, canHold, count);
@@ -1260,12 +1442,17 @@ function renderSplitDice(diceEntries, canHold, count) {
 }
 
 function renderDiceSlots(diceEntries, canHold, lane, shouldShowDie) {
+  let laneIndex = -1;
   return diceEntries
-    .map((entry) => `
-      <span class="dice-slot ${shouldShowDie(entry) ? "" : "is-empty"}">
-        ${shouldShowDie(entry) ? renderDieButton(entry, canHold, lane) : renderDieGhost()}
-      </span>
-    `)
+    .map((entry) => {
+      const isVisible = shouldShowDie(entry);
+      if (isVisible) laneIndex += 1;
+      return `
+        <span class="dice-slot ${isVisible ? "" : "is-empty"}">
+          ${isVisible ? renderDieButton(entry, canHold, lane, laneIndex) : renderDieGhost()}
+        </span>
+      `;
+    })
     .join("");
 }
 
@@ -1287,7 +1474,7 @@ function renderLegacyDice(diceEntries, canHold) {
     .join("");
 }
 
-function renderDieButton(entry, canHold, lane) {
+function renderDieButton(entry, canHold, lane, laneIndex = entry.index) {
   const held = entry.held ? "is-held" : "";
   const saved = lane === "held" && !state.isRolling ? "is-saved" : "";
   const empty = entry.value ? "" : "is-empty";
@@ -1296,7 +1483,13 @@ function renderDieButton(entry, canHold, lane) {
   const motion = throwStyle(entry.index);
   const value = entry.value ? `, verdi ${entry.value}` : "";
   const label = entry.held ? `Spart terning ${entry.index + 1}${value}` : `Terning ${entry.index + 1}${value}`;
-  return `<button class="die ${held} ${saved} ${empty} ${rolling}" style="${motion}" type="button" data-hold="${entry.index}" ${disabled} aria-label="${label}">${renderPips(entry.value)}</button>`;
+  const shortcut = lane === "held" ? heldDieShortcut(laneIndex) : String(entry.index + 1);
+  const shortcutAction = lane === "held" ? "Slipp" : "Spar";
+  return `<button class="die ${held} ${saved} ${empty} ${rolling}" style="${motion}" type="button" data-hold="${entry.index}" ${disabled} aria-label="${label}. Hurtigtast ${shortcut}" title="${shortcutAction} med tast ${shortcut.toUpperCase()}">${renderPips(entry.value)}<kbd class="die-hotkey" aria-hidden="true">${shortcut.toUpperCase()}</kbd></button>`;
+}
+
+function heldDieShortcut(index) {
+  return "qwerty"[index] || "";
 }
 
 function throwStyle(index) {
@@ -1330,6 +1523,29 @@ function handleRollShortcut(event) {
   void action("roll");
 }
 
+function handleDieShortcut(event) {
+  if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (isKeyboardControlTarget(event.target)) return;
+  if (!state.game || !isMyTurn() || state.game.rollsUsed === 0 || state.pending || state.isRolling) return;
+  const numericIndex = Number(event.key) - 1;
+  let index = null;
+  if (Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < diceCount()) {
+    if (state.game.held[numericIndex]) return;
+    index = numericIndex;
+  } else {
+    const heldPosition = "qwerty".indexOf(String(event.key).toLowerCase());
+    if (heldPosition < 0) return;
+    const heldEntries = state.game.dice
+      .map((value, dieIndex) => ({ value, index: dieIndex, held: Boolean(state.game.held[dieIndex]) }))
+      .filter((entry) => entry.held);
+    if (!heldEntries[heldPosition]) return;
+    index = heldEntries[heldPosition].index;
+  }
+
+  event.preventDefault();
+  void action("hold", { index });
+}
+
 function renderEmptyFelt(label) {
   return `<div class="empty-felt">${escapeHtml(label)}</div>`;
 }
@@ -1351,6 +1567,16 @@ function renderRollMeta(game) {
   els.rollMeta.querySelector("[data-use-saved-roll]")?.addEventListener("click", () => {
     void action("roll", { useSavedRoll: true });
   });
+}
+
+function renderSyncRecovery() {
+  if (!els.syncRecovery) return;
+  const issue = state.syncIssue;
+  els.syncRecovery.classList.toggle("is-hidden", !issue);
+  if (!issue) return;
+  els.syncRecoveryText.textContent = issue.message;
+  els.syncRecoveryAction.classList.toggle("is-hidden", !issue.canRetryRoll);
+  els.syncRecoveryAction.disabled = !issue.canRetryRoll || !canRollDice();
 }
 
 function rollButtonText(game) {
@@ -1614,10 +1840,55 @@ function scoreCell(player, category) {
 }
 
 function renderLog() {
-  const log = (state.game.log || []).filter((entry) => !isHoldLogMessage(entry.message));
+  const log = state.game.log || [];
   els.gameLog.innerHTML = log.length
-    ? log.map((entry) => `<li>${escapeHtml(entry.message)}</li>`).join("")
+    ? log.map((entry) => renderLogEntry(entry)).join("")
     : "<li>Ingen trekk enn&aring;.</li>";
+}
+
+function renderLogEntry(entry) {
+  if (entry.type === "roll") {
+    const rolled = formatDiceValues(entry.rolledDice);
+    const kept = formatDiceValues(entry.keptDice);
+    const detail = [
+      rolled ? `<span class="log-dice">Kastet ${rolled}</span>` : "",
+      kept ? `beholdt ${kept}` : "",
+      entry.usedSavedRoll ? "brukte sjetong" : ""
+    ].filter(Boolean).join(" · ");
+    return `
+      <li>
+        <span class="log-heading">🎲 ${escapeHtml(entry.playerName || "Spiller")} · kast ${Number(entry.rollNumber) || 1}</span>
+        <span class="log-detail">${detail}</span>
+      </li>
+    `;
+  }
+
+  if (entry.type === "hold") {
+    const kept = formatDiceValues(entry.heldDice);
+    return `
+      <li>
+        <span class="log-heading">${entry.held ? "📌" : "↩"} ${escapeHtml(entry.message)}</span>
+        ${kept ? `<span class="log-detail">Spart nå: <span class="log-dice">${kept}</span></span>` : ""}
+      </li>
+    `;
+  }
+
+  if (entry.type === "score") {
+    const dice = formatDiceValues(entry.dice);
+    return `
+      <li>
+        <span class="log-heading">✎ ${escapeHtml(entry.playerName || "Spiller")} skrev ${Number(entry.points) || 0} på ${escapeHtml(entry.category || "")}</span>
+        ${dice ? `<span class="log-detail">Etter ${Number(entry.rollsUsed) || 1} kast · <span class="log-dice">${dice}</span></span>` : ""}
+      </li>
+    `;
+  }
+
+  return `<li><span class="log-heading">${escapeHtml(entry.message)}</span></li>`;
+}
+
+function formatDiceValues(values) {
+  if (!Array.isArray(values) || !values.length) return "";
+  return [...values].sort((a, b) => a - b).join(" · ");
 }
 
 function renderChat() {
@@ -1822,6 +2093,122 @@ function handleGlobalClickSound(event) {
   playClickSound();
 }
 
+function loadWorkspaceLayout() {
+  if (!els.gameView) return;
+  const playWidth = Number(localStorage.getItem("yatzy:layout:playWidth"));
+  const roomWidth = Number(localStorage.getItem("yatzy:layout:roomWidth"));
+  const chatHeight = Number(localStorage.getItem("yatzy:layout:chatHeight"));
+  if (playWidth > 0) els.gameView.style.setProperty("--play-column-width", `${playWidth}px`);
+  if (roomWidth > 0) els.gameView.style.setProperty("--room-column-width", `${roomWidth}px`);
+  if (chatHeight > 0) els.gameView.style.setProperty("--chat-height", `${chatHeight}px`);
+}
+
+function bindWorkspaceResizers() {
+  bindColumnResizer(els.playScoreResizer, "play");
+  bindColumnResizer(els.scoreRoomResizer, "room");
+  bindFlowResizer();
+}
+
+function bindColumnResizer(handle, target) {
+  if (!handle || !els.gameView) return;
+
+  const resizeBy = (delta) => {
+    const play = els.gameView.querySelector(".play-column");
+    const score = els.gameView.querySelector(".score-wrap");
+    const room = els.gameView.querySelector(".room-flow-panel");
+    if (!play || !score || !room) return;
+    const available = play.offsetWidth + score.offsetWidth + room.offsetWidth;
+    if (target === "play") {
+      const next = clamp(play.offsetWidth + delta, 360, available - room.offsetWidth - 260);
+      els.gameView.style.setProperty("--play-column-width", `${next}px`);
+      localStorage.setItem("yatzy:layout:playWidth", String(Math.round(next)));
+    } else {
+      const next = clamp(room.offsetWidth - delta, 220, available - play.offsetWidth - 260);
+      els.gameView.style.setProperty("--room-column-width", `${next}px`);
+      localStorage.setItem("yatzy:layout:roomWidth", String(Math.round(next)));
+    }
+    void synchronizeDice3dSize();
+  };
+
+  handle.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    let previousX = event.clientX;
+    handle.classList.add("is-dragging");
+    handle.setPointerCapture(event.pointerId);
+    const onMove = (moveEvent) => {
+      resizeBy(moveEvent.clientX - previousX);
+      previousX = moveEvent.clientX;
+    };
+    const onEnd = () => {
+      handle.classList.remove("is-dragging");
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onEnd);
+      handle.removeEventListener("pointercancel", onEnd);
+    };
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onEnd);
+    handle.addEventListener("pointercancel", onEnd);
+  });
+
+  handle.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    event.preventDefault();
+    resizeBy(event.key === "ArrowRight" ? 16 : -16);
+  });
+}
+
+function bindFlowResizer() {
+  const handle = els.chatFlowResizer;
+  if (!handle || !els.gameView) return;
+
+  const resizeBy = (delta) => {
+    const panel = handle.closest(".room-flow-panel");
+    const chat = panel?.querySelector(".chat-section");
+    const flow = panel?.querySelector(".flow-section");
+    if (!panel || !chat || !flow) return;
+    const next = clamp(chat.offsetHeight + delta, 120, panel.clientHeight - 132);
+    els.gameView.style.setProperty("--chat-height", `${next}px`);
+    localStorage.setItem("yatzy:layout:chatHeight", String(Math.round(next)));
+  };
+
+  handle.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    let previousY = event.clientY;
+    handle.classList.add("is-dragging");
+    handle.setPointerCapture(event.pointerId);
+    const onMove = (moveEvent) => {
+      resizeBy(moveEvent.clientY - previousY);
+      previousY = moveEvent.clientY;
+    };
+    const onEnd = () => {
+      handle.classList.remove("is-dragging");
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onEnd);
+      handle.removeEventListener("pointercancel", onEnd);
+    };
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onEnd);
+    handle.addEventListener("pointercancel", onEnd);
+  });
+
+  handle.addEventListener("keydown", (event) => {
+    if (!["ArrowUp", "ArrowDown"].includes(event.key)) return;
+    event.preventDefault();
+    resizeBy(event.key === "ArrowDown" ? 16 : -16);
+  });
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+window.addEventListener("resize", () => {
+  if (!state.dice3d.visible) return;
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(constrainDice3dWorld);
+  });
+});
+
 els.createForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
@@ -1883,7 +2270,14 @@ if (els.celebrationLayer) {
 document.addEventListener("pointerdown", () => ensureAudioContext(), { once: true });
 document.addEventListener("keydown", () => ensureAudioContext(), { once: true });
 document.addEventListener("keydown", handleRollShortcut);
+document.addEventListener("keydown", handleDieShortcut);
 document.addEventListener("click", handleGlobalClickSound);
+if (els.syncRecoveryAction) {
+  els.syncRecoveryAction.addEventListener("click", () => {
+    state.syncIssue = null;
+    void action("roll");
+  });
+}
 if (els.chatForm) {
   els.chatForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1907,6 +2301,8 @@ els.roomCode.addEventListener("input", () => {
 
 async function boot() {
   preloadEffectAudio();
+  loadWorkspaceLayout();
+  bindWorkspaceResizers();
   applyDiceTheme(loadDiceTheme());
   renderSoundToggle();
   const params = new URLSearchParams(window.location.search);

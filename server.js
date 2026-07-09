@@ -33,12 +33,14 @@ const MIME_TYPES = {
   ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml",
   ".wasm": "application/wasm",
+  ".webp": "image/webp",
   ".png": "image/png",
   ".ico": "image/x-icon"
 };
 
 const games = loadGames();
 const streams = new Map();
+const ROLL_START_DELAY_MS = 350;
 
 function loadGames() {
   try {
@@ -138,13 +140,14 @@ function createPlayer(name) {
   };
 }
 
-function addLog(game, message) {
+function addLog(game, message, details = {}) {
   game.log.unshift({
     id: crypto.randomUUID(),
     message,
-    at: new Date().toISOString()
+    at: new Date().toISOString(),
+    ...details
   });
-  game.log = game.log.slice(0, 16);
+  game.log = game.log.slice(0, 48);
 }
 
 function createGame({ mode, name }) {
@@ -166,6 +169,7 @@ function createGame({ mode, name }) {
     dice: [],
     held: Array.from({ length: rules.diceCount }, () => false),
     rollsUsed: 0,
+    activeRoll: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     log: [],
@@ -220,6 +224,7 @@ function publicGame(game) {
     dice: game.dice,
     held: game.held,
     rollsUsed: game.rollsUsed,
+    activeRoll: game.activeRoll || null,
     scoreReadyRolls,
     baseRolls: rollLimit,
     rollLimit,
@@ -304,6 +309,7 @@ function startGame(game, player, version) {
   game.dice = [];
   game.held = Array.from({ length: getRules(game.mode).diceCount }, () => false);
   game.rollsUsed = 0;
+  game.activeRoll = null;
   addLog(game, `${player.name} startet spillet.`);
   touch(game);
 }
@@ -356,6 +362,7 @@ function restartGame(game, player, version) {
   game.dice = [];
   game.held = Array.from({ length: rules.diceCount }, () => false);
   game.rollsUsed = 0;
+  game.activeRoll = null;
   game.log = [];
   addLog(game, `${player.name} startet et nytt ark.`);
   touch(game);
@@ -432,26 +439,133 @@ function rollDice(game, player, version, dice = null, useSavedRoll = false) {
     player.savedRolls -= 1;
   }
 
+  const rolledDice = nextDice.filter((value, index) => firstRoll || !game.held[index]);
+  const keptDice = nextDice.filter((value, index) => !firstRoll && game.held[index]);
   game.dice = nextDice;
   game.rollsUsed += 1;
-  addLog(game, spendsSavedRoll ? `${player.name} brukte en sjetong og kastet terningene.` : `${player.name} kastet terningene.`);
+  addLog(
+    game,
+    spendsSavedRoll ? `${player.name} brukte en sjetong og kastet.` : `${player.name} kastet.`,
+    {
+      type: "roll",
+      playerName: player.name,
+      rollNumber: game.rollsUsed,
+      dice: [...nextDice],
+      rolledDice,
+      keptDice,
+      usedSavedRoll: spendsSavedRoll
+    }
+  );
+  touch(game);
+}
+
+function beginSynchronizedRoll(game, player, version, useSavedRoll = false) {
+  assertVersion(game, version);
+  requireActiveTurn(game, player);
+
+  if (game.activeRoll) {
+    const age = Date.now() - new Date(game.activeRoll.startedAt).getTime();
+    if (Number.isFinite(age) && age > 30_000 && game.activeRoll.seatId === player.seatId) {
+      game.activeRoll = null;
+    } else {
+      throw httpError(409, "Et terningkast er allerede i gang.");
+    }
+  }
+
+  const rules = getRules(game.mode);
+  const rollLimit = turnBaseRolls(game, player, rules);
+  const baseRollAvailable = game.rollsUsed < rollLimit;
+  const spendsSavedRoll = Boolean(useSavedRoll);
+  if (spendsSavedRoll) {
+    if (!rules.canSaveRolls) throw httpError(400, "Denne varianten har ikke ekstra kast.");
+    if (baseRollAvailable) throw httpError(400, "Bruk de vanlige kastene f\u00f8rst.");
+    if (!canSpendSavedRoll(game, player, rules)) throw httpError(400, "Du har ingen sjetonger igjen.");
+  } else if (!baseRollAvailable) {
+    const message = rules.canSaveRolls ? "Bruk en sjetong for ekstra kast." : "Du har ikke flere kast igjen.";
+    throw httpError(400, message);
+  }
+
+  const firstRoll = game.dice.length === 0;
+  const diceIndexes = Array.from(
+    { length: rules.diceCount },
+    (_, index) => index
+  ).filter((index) => firstRoll || !game.held[index]);
+  const values = diceIndexes.map(() => crypto.randomInt(1, 7));
+  const dice = firstRoll
+    ? Array.from({ length: rules.diceCount }, () => 0)
+    : [...game.dice];
+  diceIndexes.forEach((index, valueIndex) => {
+    dice[index] = values[valueIndex];
+  });
+
+  if (!diceIndexes.length || dice.some((value) => !Number.isInteger(value) || value < 1 || value > 6)) {
+    throw httpError(400, "Kunne ikke planlegge terningkastet.");
+  }
+
+  const startedAt = Date.now();
+  game.activeRoll = {
+    id: crypto.randomUUID(),
+    seatId: player.seatId,
+    held: [...game.held],
+    diceIndexes,
+    values,
+    dice,
+    useSavedRoll: spendsSavedRoll,
+    startedAt: new Date(startedAt).toISOString(),
+    startsAt: startedAt + ROLL_START_DELAY_MS
+  };
+  touch(game);
+}
+
+function completeSynchronizedRoll(game, player, rollId) {
+  const activeRoll = game.activeRoll;
+  if (!activeRoll || activeRoll.id !== rollId) throw httpError(409, "Kastet finnes ikke lenger.");
+  if (activeRoll.seatId !== player.seatId) throw httpError(403, "Bare spilleren som kastet kan fullf\u00f8re kastet.");
+
+  game.activeRoll = null;
+  try {
+    rollDice(game, player, game.version, activeRoll.dice, activeRoll.useSavedRoll);
+  } catch (error) {
+    game.activeRoll = activeRoll;
+    throw error;
+  }
+}
+
+function cancelSynchronizedRoll(game, player, rollId) {
+  const activeRoll = game.activeRoll;
+  if (!activeRoll || activeRoll.id !== rollId) return;
+  if (activeRoll.seatId !== player.seatId) throw httpError(403, "Bare spilleren som kastet kan avbryte kastet.");
+  game.activeRoll = null;
   touch(game);
 }
 
 function toggleHold(game, player, version, index) {
   assertVersion(game, version);
   requireActiveTurn(game, player);
+  if (game.activeRoll) throw httpError(409, "Vent til terningkastet er ferdig.");
   const rules = getRules(game.mode);
   if (!Number.isInteger(index) || index < 0 || index >= rules.diceCount) throw httpError(400, "Ugyldig terning.");
   if (game.rollsUsed === 0) throw httpError(400, "Kast f\u00f8rst, s\u00e5 kan du holde terninger.");
   game.held[index] = !game.held[index];
-  addLog(game, `${player.name} ${game.held[index] ? "sparte" : "slapp"} terning ${index + 1}.`);
+  addLog(
+    game,
+    `${player.name} ${game.held[index] ? "sparte" : "slapp"} ${game.dice[index]}.`,
+    {
+      type: "hold",
+      playerName: player.name,
+      dieIndex: index,
+      dieValue: game.dice[index],
+      held: game.held[index],
+      heldDice: game.dice.filter((value, dieIndex) => game.held[dieIndex])
+    }
+  );
   touch(game);
 }
 
 function scoreTurn(game, player, version, categoryId) {
   assertVersion(game, version);
   requireActiveTurn(game, player);
+  if (game.activeRoll) throw httpError(409, "Vent til terningkastet er ferdig.");
   const rules = getRules(game.mode);
   const category = rules.categories.find((entry) => entry.id === categoryId);
   if (!category) throw httpError(400, "Ukjent kategori.");
@@ -479,7 +593,19 @@ function scoreTurn(game, player, version, categoryId) {
     player.savedRolls = Math.max(0, player.savedRolls + unusedBaseRolls);
   }
 
-  addLog(game, `${player.name} skrev ${points} p\u00e5 ${category.label}.`);
+  addLog(
+    game,
+    `${player.name} skrev ${points} p\u00e5 ${category.label}.`,
+    {
+      type: "score",
+      playerName: player.name,
+      category: category.label,
+      categoryId,
+      points,
+      dice: [...game.dice],
+      rollsUsed: game.rollsUsed
+    }
+  );
 
   const allComplete = game.players.every((entry) => isScorecardComplete(game.mode, entry.scores));
   if (allComplete) {
@@ -488,6 +614,7 @@ function scoreTurn(game, player, version, categoryId) {
     game.dice = [];
     game.held = Array.from({ length: rules.diceCount }, () => false);
     game.rollsUsed = 0;
+    game.activeRoll = null;
     addLog(game, "Spillet er ferdig.");
     touch(game);
     return;
@@ -499,6 +626,7 @@ function scoreTurn(game, player, version, categoryId) {
   game.dice = [];
   game.held = Array.from({ length: rules.diceCount }, () => false);
   game.rollsUsed = 0;
+  game.activeRoll = null;
   touch(game);
 }
 
@@ -584,7 +712,18 @@ async function handleApi(req, res, url) {
   } else if (action === "restart") {
     restartGame(game, player, body.version);
   } else if (action === "roll") {
-    rollDice(game, player, body.version, body.dice ?? null, body.useSavedRoll === true);
+    if (body.dice !== undefined) {
+      if (process.env.ALLOW_TEST_DICE !== "true") {
+        throw httpError(400, "Terningresultatet bestemmes av serveren.");
+      }
+      rollDice(game, player, body.version, body.dice, body.useSavedRoll === true);
+    } else {
+      beginSynchronizedRoll(game, player, body.version, body.useSavedRoll === true);
+    }
+  } else if (action === "complete") {
+    completeSynchronizedRoll(game, player, body.rollId);
+  } else if (action === "cancel") {
+    cancelSynchronizedRoll(game, player, body.rollId);
   } else if (action === "hold") {
     toggleHold(game, player, body.version, body.index);
   } else if (action === "score") {
