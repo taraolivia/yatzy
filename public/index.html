@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Yatzy with friends</title>
-    <link rel="stylesheet" href="/styles.css?v=20260709-fantastic-dice-sync">
+    <link rel="stylesheet" href="/styles.css?v=20260719-felt-backgrounds">
   </head>
   <body>
     <div class="app">
@@ -97,6 +97,7 @@
                 </div>
                 <div class="lobby-actions">
                   <button class="secondary action-button is-hidden" id="rulesToggle" type="button" aria-expanded="false" aria-controls="rulesPanel">Regler</button>
+                  <div class="host-controls is-hidden" id="hostControls"></div>
                   <button class="primary action-button" id="startGame" type="button">Start spill</button>
                 </div>
               </div>
@@ -164,6 +165,14 @@
                       <span>Kastefelt</span>
                       <span id="activeDiceLabel">0</span>
                     </div>
+                    <div class="roll-box">
+                      <button class="primary roll-button" id="rollDice" type="button">Kast</button>
+                      <div class="roll-meta" id="rollMeta">0 kast brukt</div>
+                      <div class="sync-recovery is-hidden" id="syncRecovery" role="status" aria-live="polite">
+                        <span id="syncRecoveryText">Spillet er synkronisert igjen.</span>
+                        <button class="secondary small" id="syncRecoveryAction" type="button">Kast p&aring; nytt</button>
+                      </div>
+                    </div>
                     <div class="dice-3d-stage" id="dice3dStage" aria-hidden="true"></div>
                     <div class="dice-row active-dice" id="activeDiceRow"></div>
                   </div>
@@ -173,14 +182,6 @@
                       <span id="heldDiceLabel">0</span>
                     </div>
                     <div class="dice-row held-dice" id="heldDiceRow"></div>
-                  </div>
-                </div>
-                <div class="roll-box">
-                  <button class="primary roll-button" id="rollDice" type="button">Kast</button>
-                  <div class="roll-meta" id="rollMeta">0 kast brukt</div>
-                  <div class="sync-recovery is-hidden" id="syncRecovery" role="status" aria-live="polite">
-                    <span id="syncRecoveryText">Spillet er synkronisert igjen.</span>
-                    <button class="secondary small" id="syncRecoveryAction" type="button">Kast p&aring; nytt</button>
                   </div>
                 </div>
               </div>
@@ -200,7 +201,7 @@
                   <button class="theme-button" type="button" data-dice-theme="rock" aria-label="Steinterninger" title="Steinterninger">
                     <span class="swatch rock"></span>
                   </button>
-                  <button class="theme-button" type="button" data-dice-theme="smooth" aria-label="Glatte terninger" title="Glatte terninger">
+                  <button class="theme-button" type="button" data-dice-theme="smooth" aria-label="Rosa terninger" title="Rosa terninger">
                     <span class="swatch smooth"></span>
                   </button>
                   <button class="theme-button" type="button" data-dice-theme="smooth-pip" aria-label="Glatte prikkterninger" title="Glatte prikkterninger">
@@ -217,6 +218,28 @@
                   </button>
                   <button class="theme-button" type="button" data-dice-theme="yellow" aria-label="Gule terninger" title="Gule terninger">
                     <span class="swatch yellow"></span>
+                  </button>
+                </fieldset>
+
+                <fieldset class="felt-customizer" id="feltCustomizer">
+                  <legend>Kastefelt</legend>
+                  <button class="theme-button" type="button" data-felt-theme="tavern" aria-label="Tavern kastefelt" title="Tavern kastefelt">
+                    <span class="swatch felt-tavern"></span>
+                  </button>
+                  <button class="theme-button" type="button" data-felt-theme="green" aria-label="Grønt kastefelt" title="Grønt kastefelt">
+                    <span class="swatch felt-green"></span>
+                  </button>
+                  <button class="theme-button" type="button" data-felt-theme="blue" aria-label="Blått kastefelt" title="Blått kastefelt">
+                    <span class="swatch felt-blue"></span>
+                  </button>
+                  <button class="theme-button" type="button" data-felt-theme="red" aria-label="Rødt kastefelt" title="Rødt kastefelt">
+                    <span class="swatch felt-red"></span>
+                  </button>
+                  <button class="theme-button" type="button" data-felt-theme="mahogany" aria-label="Mahogni kastefelt" title="Mahogni kastefelt">
+                    <span class="swatch felt-mahogany"></span>
+                  </button>
+                  <button class="theme-button" type="button" data-felt-theme="steel" aria-label="Stål kastefelt" title="Stål kastefelt">
+                    <span class="swatch felt-steel"></span>
                   </button>
                 </fieldset>
 
@@ -243,7 +266,9 @@
               <div class="chat-list" id="chatList" aria-live="polite"></div>
               <form class="chat-form" id="chatForm">
                 <input id="chatInput" name="message" autocomplete="off" maxlength="160" placeholder="Skriv noe...">
+                <button class="secondary small chat-emoji-toggle" id="chatEmojiToggle" type="button" aria-label="Åpne emojipanel" aria-expanded="false" aria-controls="chatEmojiPanel">☺</button>
                 <button class="primary small" id="sendChat" type="submit">Send</button>
+                <div class="chat-emoji-panel is-hidden" id="chatEmojiPanel" role="listbox" aria-label="Emoji"></div>
               </form>
             </section>
 
@@ -262,6 +287,6 @@
 
     <div class="celebration-layer" id="celebrationLayer" aria-hidden="true"></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js?v=20260709-threejs-forced-outcomes" defer></script>
+    <script src="/app.js?v=20260719-felt-backgrounds" defer></script>
   </body>
 </html>

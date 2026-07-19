@@ -25,6 +25,37 @@
   --die-pip: #17211d;
   --die-held-bg: #e9f8f1;
   --die-held-border: #1d8a70;
+  --dice-table-bg:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.04) 18% 82%, rgba(255, 255, 255, 0.18)),
+    repeating-linear-gradient(9deg, rgba(88, 52, 24, 0.12) 0 2px, rgba(255, 239, 203, 0.12) 2px 9px, rgba(126, 76, 35, 0.09) 9px 14px),
+    linear-gradient(135deg, #dcaa68 0%, #bb793a 48%, #8b5228 100%);
+  --dice-table-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    inset 0 20px 62px rgba(82, 45, 19, 0.14),
+    0 18px 36px rgba(72, 47, 25, 0.18);
+  --felt-bg:
+    radial-gradient(circle at 20% 15%, rgba(255, 250, 231, 0.22), transparent 31%),
+    repeating-linear-gradient(92deg, rgba(82, 47, 20, 0.09) 0 1px, transparent 1px 8px, rgba(255, 241, 210, 0.15) 8px 12px),
+    linear-gradient(135deg, rgba(179, 111, 55, 0.64), rgba(119, 73, 39, 0.54));
+  --felt-saved-bg:
+    linear-gradient(145deg, rgba(255, 248, 226, 0.42), rgba(213, 149, 72, 0.2)),
+    rgba(139, 84, 41, 0.16);
+  --felt-stage-bg:
+    radial-gradient(circle at 42% 24%, rgba(255, 248, 226, 0.3), transparent 36%),
+    radial-gradient(circle at 50% 120%, rgba(76, 43, 20, 0.12), transparent 58%),
+    linear-gradient(135deg, rgba(141, 87, 45, 0.18), rgba(88, 52, 27, 0.18));
+  --felt-stage-shadow:
+    inset 0 0 0 1px rgba(255, 247, 223, 0.2),
+    inset 0 18px 46px rgba(39, 22, 11, 0.1);
+  --felt-label: #fff4d7;
+  --felt-label-shadow: 0 1px 3px rgba(50, 26, 10, 0.7);
+  --felt-chip-bg: rgba(84, 45, 18, 0.22);
+  --felt-roll-bg: rgba(87, 47, 19, 0.5);
+  --felt-roll-border: rgba(255, 246, 219, 0.22);
+  --felt-roll-shadow: 0 10px 22px rgba(55, 28, 10, 0.18);
+  --felt-empty: rgba(255, 244, 215, 0.86);
+  --felt-ghost-border: rgba(255, 238, 198, 0.48);
+  --felt-stage-filter: brightness(1.08) contrast(1.14) saturate(1.12);
   --font-size-min: max(0.75rem, 12px);
   --font-handwritten: "MyCustomFont", "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
   --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -56,11 +87,11 @@ body[data-dice-theme="rock"] {
 }
 
 body[data-dice-theme="smooth"] {
-  --die-bg: #c993c8;
-  --die-border: #d7d0c3;
-  --die-pip: #17211d;
-  --die-held-bg: #f0f7f2;
-  --die-held-border: #c57bc4;
+  --die-bg: #f2a7cb;
+  --die-border: #bd6fa5;
+  --die-pip: #4d263b;
+  --die-held-bg: #ffd6e8;
+  --die-held-border: #bd6fa5;
 }
 
 body[data-dice-theme="smooth-pip"] {
@@ -108,6 +139,171 @@ body[data-dice-theme="yellow"] {
   --die-pip: #5b3508;
   --die-held-bg: #fff2a6;
   --die-held-border: #d19a1f;
+}
+
+body[data-felt-theme="green"] {
+  --dice-table-bg:
+    linear-gradient(90deg, rgba(236, 255, 245, 0.14), rgba(236, 255, 245, 0) 18% 82%, rgba(236, 255, 245, 0.1)),
+    repeating-linear-gradient(12deg, rgba(6, 54, 40, 0.18) 0 2px, rgba(192, 246, 219, 0.08) 2px 9px, rgba(12, 82, 58, 0.13) 9px 14px),
+    linear-gradient(135deg, #2f8d68 0%, #1c6049 52%, #0d342b 100%);
+  --dice-table-shadow:
+    inset 0 0 0 1px rgba(224, 255, 239, 0.16),
+    inset 0 22px 70px rgba(9, 55, 41, 0.24),
+    0 18px 36px rgba(16, 58, 45, 0.22);
+  --felt-bg:
+    radial-gradient(circle at 20% 15%, rgba(224, 255, 237, 0.16), transparent 30%),
+    repeating-linear-gradient(92deg, rgba(0, 55, 37, 0.12) 0 1px, transparent 1px 8px, rgba(186, 247, 215, 0.12) 8px 12px),
+    linear-gradient(135deg, rgba(34, 119, 81, 0.76), rgba(9, 65, 48, 0.68));
+  --felt-saved-bg:
+    linear-gradient(145deg, rgba(223, 255, 238, 0.24), rgba(53, 129, 89, 0.16)),
+    rgba(8, 60, 43, 0.22);
+  --felt-stage-bg:
+    radial-gradient(circle at 45% 28%, rgba(224, 255, 237, 0.18), transparent 34%),
+    radial-gradient(circle at 50% 120%, rgba(3, 35, 27, 0.26), transparent 58%),
+    linear-gradient(135deg, rgba(26, 96, 70, 0.28), rgba(5, 42, 32, 0.32));
+  --felt-stage-shadow:
+    inset 0 0 0 1px rgba(225, 255, 239, 0.12),
+    inset 0 22px 58px rgba(4, 34, 26, 0.24);
+  --felt-label: #effff6;
+  --felt-label-shadow: 0 1px 3px rgba(3, 32, 24, 0.72);
+  --felt-chip-bg: rgba(5, 49, 36, 0.26);
+  --felt-roll-bg: rgba(5, 46, 35, 0.6);
+  --felt-roll-border: rgba(223, 255, 238, 0.22);
+  --felt-roll-shadow: 0 10px 22px rgba(6, 42, 32, 0.2);
+  --felt-empty: rgba(235, 255, 244, 0.88);
+  --felt-ghost-border: rgba(213, 255, 232, 0.48);
+}
+
+body[data-felt-theme="blue"] {
+  --dice-table-bg:
+    linear-gradient(90deg, rgba(232, 247, 255, 0.14), rgba(232, 247, 255, 0) 18% 82%, rgba(232, 247, 255, 0.1)),
+    repeating-linear-gradient(12deg, rgba(16, 49, 84, 0.18) 0 2px, rgba(190, 229, 255, 0.08) 2px 9px, rgba(25, 78, 123, 0.13) 9px 14px),
+    linear-gradient(135deg, #3579a5 0%, #205477 52%, #102f4d 100%);
+  --dice-table-shadow:
+    inset 0 0 0 1px rgba(232, 247, 255, 0.16),
+    inset 0 22px 70px rgba(12, 46, 75, 0.24),
+    0 18px 36px rgba(17, 53, 82, 0.22);
+  --felt-bg:
+    radial-gradient(circle at 20% 15%, rgba(232, 247, 255, 0.17), transparent 30%),
+    repeating-linear-gradient(92deg, rgba(8, 50, 83, 0.12) 0 1px, transparent 1px 8px, rgba(190, 229, 255, 0.12) 8px 12px),
+    linear-gradient(135deg, rgba(40, 112, 156, 0.76), rgba(17, 67, 105, 0.7));
+  --felt-saved-bg:
+    linear-gradient(145deg, rgba(225, 246, 255, 0.26), rgba(58, 129, 173, 0.16)),
+    rgba(13, 59, 95, 0.24);
+  --felt-stage-bg:
+    radial-gradient(circle at 45% 28%, rgba(232, 247, 255, 0.18), transparent 34%),
+    radial-gradient(circle at 50% 120%, rgba(5, 31, 54, 0.28), transparent 58%),
+    linear-gradient(135deg, rgba(30, 85, 125, 0.28), rgba(9, 38, 66, 0.34));
+  --felt-stage-shadow:
+    inset 0 0 0 1px rgba(225, 247, 255, 0.12),
+    inset 0 22px 58px rgba(7, 33, 58, 0.24);
+  --felt-label: #eef9ff;
+  --felt-label-shadow: 0 1px 3px rgba(5, 29, 50, 0.72);
+  --felt-chip-bg: rgba(7, 43, 72, 0.27);
+  --felt-roll-bg: rgba(8, 42, 70, 0.62);
+  --felt-roll-border: rgba(225, 247, 255, 0.24);
+  --felt-roll-shadow: 0 10px 22px rgba(7, 35, 61, 0.2);
+  --felt-empty: rgba(235, 249, 255, 0.88);
+  --felt-ghost-border: rgba(213, 241, 255, 0.5);
+}
+
+body[data-felt-theme="red"] {
+  --dice-table-bg:
+    linear-gradient(90deg, rgba(255, 238, 232, 0.14), rgba(255, 238, 232, 0) 18% 82%, rgba(255, 238, 232, 0.1)),
+    repeating-linear-gradient(12deg, rgba(91, 23, 32, 0.18) 0 2px, rgba(255, 204, 193, 0.08) 2px 9px, rgba(120, 35, 44, 0.13) 9px 14px),
+    linear-gradient(135deg, #9d3d45 0%, #692934 52%, #3b1722 100%);
+  --dice-table-shadow:
+    inset 0 0 0 1px rgba(255, 232, 224, 0.16),
+    inset 0 22px 70px rgba(76, 18, 28, 0.24),
+    0 18px 36px rgba(70, 27, 35, 0.22);
+  --felt-bg:
+    radial-gradient(circle at 20% 15%, rgba(255, 235, 228, 0.17), transparent 30%),
+    repeating-linear-gradient(92deg, rgba(80, 12, 23, 0.12) 0 1px, transparent 1px 8px, rgba(255, 205, 195, 0.12) 8px 12px),
+    linear-gradient(135deg, rgba(135, 45, 55, 0.78), rgba(72, 20, 32, 0.7));
+  --felt-saved-bg:
+    linear-gradient(145deg, rgba(255, 235, 228, 0.26), rgba(145, 55, 62, 0.16)),
+    rgba(70, 19, 31, 0.24);
+  --felt-stage-bg:
+    radial-gradient(circle at 45% 28%, rgba(255, 235, 228, 0.18), transparent 34%),
+    radial-gradient(circle at 50% 120%, rgba(42, 8, 18, 0.29), transparent 58%),
+    linear-gradient(135deg, rgba(108, 34, 43, 0.3), rgba(52, 12, 24, 0.34));
+  --felt-stage-shadow:
+    inset 0 0 0 1px rgba(255, 233, 225, 0.12),
+    inset 0 22px 58px rgba(45, 9, 19, 0.25);
+  --felt-label: #fff3ee;
+  --felt-label-shadow: 0 1px 3px rgba(43, 8, 18, 0.72);
+  --felt-chip-bg: rgba(66, 14, 25, 0.27);
+  --felt-roll-bg: rgba(62, 13, 24, 0.62);
+  --felt-roll-border: rgba(255, 234, 226, 0.24);
+  --felt-roll-shadow: 0 10px 22px rgba(49, 10, 21, 0.2);
+  --felt-empty: rgba(255, 241, 236, 0.88);
+  --felt-ghost-border: rgba(255, 218, 209, 0.5);
+}
+
+body[data-felt-theme="mahogany"] {
+  --dice-table-bg:
+    linear-gradient(90deg, rgba(255, 242, 222, 0.14), rgba(255, 242, 222, 0) 18% 82%, rgba(255, 242, 222, 0.1)),
+    repeating-linear-gradient(9deg, rgba(72, 32, 13, 0.2) 0 2px, rgba(250, 196, 129, 0.08) 2px 9px, rgba(116, 54, 22, 0.15) 9px 14px),
+    linear-gradient(135deg, #9e5a2c 0%, #713719 49%, #3f1c0c 100%);
+  --dice-table-shadow:
+    inset 0 0 0 1px rgba(255, 234, 204, 0.16),
+    inset 0 22px 70px rgba(63, 25, 9, 0.25),
+    0 18px 36px rgba(65, 32, 15, 0.24);
+  --felt-bg:
+    radial-gradient(circle at 20% 15%, rgba(255, 231, 196, 0.16), transparent 30%),
+    repeating-linear-gradient(92deg, rgba(70, 26, 8, 0.14) 0 1px, transparent 1px 8px, rgba(255, 204, 142, 0.11) 8px 12px),
+    linear-gradient(135deg, rgba(124, 58, 25, 0.76), rgba(61, 25, 10, 0.72));
+  --felt-saved-bg:
+    linear-gradient(145deg, rgba(255, 228, 189, 0.25), rgba(130, 61, 24, 0.16)),
+    rgba(65, 28, 12, 0.25);
+  --felt-stage-bg:
+    radial-gradient(circle at 45% 28%, rgba(255, 230, 194, 0.18), transparent 34%),
+    radial-gradient(circle at 50% 120%, rgba(38, 15, 6, 0.3), transparent 58%),
+    linear-gradient(135deg, rgba(92, 42, 17, 0.3), rgba(43, 17, 7, 0.34));
+  --felt-stage-shadow:
+    inset 0 0 0 1px rgba(255, 231, 197, 0.12),
+    inset 0 22px 58px rgba(39, 15, 6, 0.26);
+  --felt-label: #fff0d8;
+  --felt-label-shadow: 0 1px 3px rgba(37, 14, 5, 0.74);
+  --felt-chip-bg: rgba(62, 25, 8, 0.28);
+  --felt-roll-bg: rgba(62, 25, 9, 0.62);
+  --felt-roll-border: rgba(255, 230, 198, 0.24);
+  --felt-roll-shadow: 0 10px 22px rgba(47, 19, 8, 0.22);
+  --felt-empty: rgba(255, 239, 214, 0.88);
+  --felt-ghost-border: rgba(255, 218, 171, 0.5);
+}
+
+body[data-felt-theme="steel"] {
+  --dice-table-bg:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0) 18% 82%, rgba(255, 255, 255, 0.28)),
+    repeating-linear-gradient(100deg, rgba(67, 83, 91, 0.12) 0 1px, rgba(255, 255, 255, 0.16) 1px 7px, rgba(85, 100, 108, 0.1) 7px 12px),
+    linear-gradient(135deg, #e5e8e7 0%, #b6c0c2 50%, #7b8b91 100%);
+  --dice-table-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.36),
+    inset 0 22px 70px rgba(78, 91, 98, 0.18),
+    0 18px 36px rgba(55, 69, 76, 0.2);
+  --felt-bg:
+    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.28), transparent 30%),
+    repeating-linear-gradient(92deg, rgba(82, 94, 100, 0.11) 0 1px, transparent 1px 8px, rgba(255, 255, 255, 0.16) 8px 12px),
+    linear-gradient(135deg, rgba(218, 224, 224, 0.78), rgba(141, 154, 159, 0.72));
+  --felt-saved-bg:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.34), rgba(130, 145, 152, 0.16)),
+    rgba(112, 128, 136, 0.22);
+  --felt-stage-bg:
+    radial-gradient(circle at 45% 28%, rgba(255, 255, 255, 0.26), transparent 34%),
+    radial-gradient(circle at 50% 120%, rgba(87, 100, 107, 0.18), transparent 58%),
+    linear-gradient(135deg, rgba(220, 226, 226, 0.35), rgba(111, 127, 135, 0.28));
+  --felt-stage-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.26),
+    inset 0 22px 58px rgba(82, 96, 104, 0.18);
+  --felt-label: #25333b;
+  --felt-label-shadow: 0 1px 0 rgba(255, 255, 255, 0.46);
+  --felt-chip-bg: rgba(255, 255, 255, 0.3);
+  --felt-roll-bg: rgba(245, 248, 248, 0.72);
+  --felt-roll-border: rgba(55, 72, 82, 0.18);
+  --felt-roll-shadow: 0 10px 22px rgba(58, 73, 82, 0.16);
+  --felt-empty: rgba(36, 52, 60, 0.76);
+  --felt-ghost-border: rgba(47, 66, 76, 0.34);
 }
 
 * {
@@ -229,6 +425,7 @@ h2 {
 .field span,
 .mode-picker legend,
 .dice-customizer legend,
+.felt-customizer legend,
 .rules-section legend {
   color: var(--muted);
   font-size: 1rem;
@@ -560,6 +757,16 @@ input {
   box-shadow: inset 4px 0 0 var(--gold);
 }
 
+.player-item.is-away {
+  background: #f4f7f5;
+  color: var(--muted);
+  opacity: 0.72;
+}
+
+.player-item.is-away .avatar {
+  background: #8d9a92;
+}
+
 .avatar {
   align-items: center;
   background: var(--coral);
@@ -583,6 +790,7 @@ input {
 .player-meta {
   color: var(--muted);
   font-size: var(--font-size-min);
+  margin-left: 6px;
 }
 
 .flow-section .game-log,
@@ -639,12 +847,98 @@ input {
 .chat-form {
   display: grid;
   gap: 6px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .chat-form input {
   min-height: 34px;
   padding: 7px 9px;
+}
+
+.chat-emoji-toggle {
+  font-size: 1rem;
+  min-width: 38px;
+  padding: 8px 0;
+}
+
+.chat-emoji-panel {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(30, 48, 42, 0.13);
+  display: grid;
+  gap: 4px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(28px, 1fr));
+  padding: 6px;
+}
+
+.chat-quote-button {
+  background: #fff7db;
+  border: 1px solid #f4dc91;
+  border-radius: 7px;
+  color: #64501a;
+  font-size: 0.75rem;
+  font-weight: 900;
+  grid-column: 1 / -1;
+  min-height: 30px;
+  padding: 6px 8px;
+}
+
+.chat-quote-button:hover,
+.chat-quote-button:focus-visible {
+  background: #ffefb8;
+  outline: none;
+}
+
+.chat-emoji-option {
+  align-items: center;
+  aspect-ratio: 1;
+  background: #f7faf8;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--ink);
+  display: inline-flex;
+  font-size: 1.1rem;
+  justify-content: center;
+  min-height: 28px;
+  min-width: 0;
+  padding: 0;
+  position: relative;
+}
+
+.chat-emoji-option:hover,
+.chat-emoji-option:focus,
+.chat-emoji-option:focus-visible {
+  background: #eef6f0;
+  border-color: #b6dfcf;
+  outline: none;
+}
+
+.chat-emoji-tooltip {
+  background: #17392f;
+  border-radius: 6px;
+  bottom: calc(100% + 5px);
+  box-shadow: 0 8px 18px rgba(18, 34, 30, 0.18);
+  color: #ffffff;
+  display: none;
+  font-size: 0.68rem;
+  font-weight: 850;
+  left: 50%;
+  line-height: 1;
+  padding: 5px 6px;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%) translateY(2px);
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.chat-emoji-option:hover .chat-emoji-tooltip,
+.chat-emoji-option:focus .chat-emoji-tooltip,
+.chat-emoji-option:focus-visible .chat-emoji-tooltip {
+  display: block;
+  transform: translateX(-50%) translateY(0);
 }
 
 .table-panel {
@@ -681,6 +975,26 @@ input {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.host-controls {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.host-select {
+  background: #f8faf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 800;
+  min-height: 34px;
+  max-width: 138px;
+  padding: 7px 8px;
 }
 
 .rules-panel {
@@ -835,21 +1149,15 @@ input {
 .dice-zone {
   align-items: stretch;
   display: grid;
-  gap: 18px;
-  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
   margin-top: 20px;
 }
 
 .dice-table {
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 18% 82%, rgba(255, 255, 255, 0.12)),
-    repeating-linear-gradient(9deg, rgba(83, 48, 20, 0.16) 0 2px, rgba(255, 235, 190, 0.08) 2px 9px, rgba(111, 66, 27, 0.12) 9px 14px),
-    linear-gradient(135deg, #c98e4a 0%, #a9652d 48%, #7a421f 100%);
+  background: var(--dice-table-bg);
   border-radius: 8px;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
-    inset 0 22px 70px rgba(82, 45, 19, 0.22),
-    0 18px 36px rgba(72, 47, 25, 0.22);
+  box-shadow: var(--dice-table-shadow);
   display: grid;
   gap: 12px;
   grid-template-areas:
@@ -872,12 +1180,9 @@ input {
 }
 
 .felt-area {
-  background:
-    radial-gradient(circle at 20% 15%, rgba(255, 245, 220, 0.18), transparent 30%),
-    repeating-linear-gradient(92deg, rgba(80, 45, 18, 0.12) 0 1px, transparent 1px 8px, rgba(255, 239, 202, 0.12) 8px 12px),
-    linear-gradient(135deg, rgba(202, 142, 74, 0.62), rgba(139, 79, 35, 0.58));
+  background: var(--felt-bg);
   grid-area: felt;
-  grid-template-rows: minmax(268px, 1fr) minmax(58px, auto);
+  grid-template-rows: minmax(286px, 1fr) minmax(58px, auto);
   isolation: isolate;
   overflow: hidden;
   position: relative;
@@ -885,10 +1190,7 @@ input {
 
 .saved-area {
   align-items: center;
-  background:
-    linear-gradient(145deg, rgba(255, 247, 224, 0.34), rgba(198, 131, 55, 0.18)),
-    rgba(121, 68, 30, 0.2);
-  border: 1px dashed rgba(255, 236, 190, 0.72);
+  background: var(--felt-saved-bg);
   grid-area: saved;
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: 1fr;
@@ -896,7 +1198,7 @@ input {
 
 .table-label {
   align-items: center;
-  color: #fff4d7;
+  color: var(--felt-label);
   display: flex;
   font-size: 0.78rem;
   font-weight: 920;
@@ -906,16 +1208,17 @@ input {
 }
 
 .felt-area .table-label {
-  inset: 10px 10px auto;
+  gap: 8px;
+  inset: 10px auto auto 10px;
   pointer-events: none;
   position: absolute;
-  text-shadow: 0 1px 3px rgba(50, 26, 10, 0.7);
+  text-shadow: var(--felt-label-shadow);
   width: auto;
   z-index: 3;
 }
 
 .table-label span:last-child {
-  background: rgba(84, 45, 18, 0.22);
+  background: var(--felt-chip-bg);
   border-radius: 999px;
   padding: 3px 7px;
 }
@@ -933,11 +1236,11 @@ input {
 .dice-3d-stage {
   align-self: stretch;
   aspect-ratio: 8 / 5;
-  border: 1px solid rgba(255, 246, 219, 0.2);
+  background: var(--felt-stage-bg);
   border-radius: 8px;
-  box-shadow: inset 0 0 0 1px rgba(67, 36, 14, 0.16);
+  box-shadow: var(--felt-stage-shadow);
   display: none;
-  min-height: 268px;
+  min-height: 286px;
   opacity: 0;
   overflow: hidden;
   pointer-events: none;
@@ -950,6 +1253,7 @@ input {
 .dice-3d-stage canvas,
 .dice-3d-stage .dice-box-canvas {
   display: block;
+  filter: var(--felt-stage-filter);
   height: 100% !important;
   opacity: 1;
   transition: opacity 160ms ease;
@@ -1112,16 +1416,15 @@ input {
 
 .die-ghost {
   aspect-ratio: 1;
-  border: 2px dashed rgba(255, 238, 198, 0.48);
+  border: 2px dashed var(--felt-ghost-border);
   border-radius: 8px;
   display: block;
 }
 
 .empty-felt {
   align-items: center;
-  border: 2px dashed rgba(255, 238, 198, 0.48);
   border-radius: 8px;
-  color: rgba(255, 244, 215, 0.86);
+  color: var(--felt-empty);
   display: flex;
   font-size: 0.9rem;
   font-weight: 850;
@@ -1161,19 +1464,47 @@ body[data-dice-theme="glitter"] .die::after {
 }
 
 .roll-box {
+  align-items: center;
+  background: var(--felt-roll-bg);
+  border: 1px solid var(--felt-roll-border);
+  border-radius: 8px;
+  box-shadow: var(--felt-roll-shadow);
   display: grid;
-  gap: 9px;
+  gap: 4px 8px;
+  grid-template-columns: auto minmax(0, auto);
+  justify-items: start;
+  max-width: min(360px, calc(100% - 132px));
+  padding: 7px;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 4;
 }
 
 .roll-button {
-  font-size: 1.12rem;
-  min-height: 58px;
+  font-size: 0.9rem;
+  min-height: 34px;
+  padding: 8px 13px;
+  white-space: nowrap;
 }
 
 .roll-meta {
-  color: var(--muted);
-  font-size: 0.88rem;
-  text-align: center;
+  color: var(--felt-label);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: left;
+  text-shadow: var(--felt-label-shadow);
+}
+
+.roll-box .sync-recovery {
+  grid-column: 1 / -1;
+  max-width: 100%;
+}
+
+.roll-box .roll-meta-saved,
+.roll-box .roll-meta-saved-label {
+  color: var(--felt-label);
 }
 
 .roll-meta-saved,
@@ -1235,12 +1566,13 @@ body[data-dice-theme="glitter"] .die::after {
   border-top: 1px solid var(--line);
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
   margin-top: 18px;
   padding-top: 16px;
 }
 
-.dice-customizer {
+.dice-customizer,
+.felt-customizer {
   border: 0;
   display: flex;
   flex-wrap: wrap;
@@ -1249,7 +1581,12 @@ body[data-dice-theme="glitter"] .die::after {
   padding: 0;
 }
 
-.dice-customizer legend {
+.felt-customizer {
+  justify-content: flex-end;
+}
+
+.dice-customizer legend,
+.felt-customizer legend {
   height: 1px;
   overflow: hidden;
   position: absolute;
@@ -1304,7 +1641,7 @@ body[data-dice-theme="glitter"] .die::after {
 }
 
 .swatch.smooth {
-  background: #f8f3e6;
+  background: #f2a7cb;
 }
 
 .swatch.smooth-pip {
@@ -1332,9 +1669,47 @@ body[data-dice-theme="glitter"] .die::after {
   background: #ffe46b;
 }
 
+.swatch.felt-tavern {
+  background:
+    repeating-linear-gradient(18deg, rgba(83, 48, 20, 0.24) 0 2px, rgba(255, 235, 190, 0.1) 2px 8px),
+    linear-gradient(135deg, #c98e4a, #7a421f);
+}
+
+.swatch.felt-green {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(230, 255, 239, 0.58) 0 12%, transparent 13%),
+    linear-gradient(135deg, #2f8d68, #0d342b);
+}
+
+.swatch.felt-blue {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(232, 247, 255, 0.58) 0 12%, transparent 13%),
+    linear-gradient(135deg, #3579a5, #102f4d);
+}
+
+.swatch.felt-red {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 238, 232, 0.58) 0 12%, transparent 13%),
+    linear-gradient(135deg, #9d3d45, #3b1722);
+}
+
+.swatch.felt-mahogany {
+  background:
+    repeating-linear-gradient(22deg, rgba(70, 26, 8, 0.28) 0 2px, rgba(255, 204, 142, 0.12) 2px 8px),
+    linear-gradient(135deg, #9e5a2c, #3f1c0c);
+}
+
+.swatch.felt-steel {
+  background:
+    repeating-linear-gradient(100deg, rgba(67, 83, 91, 0.18) 0 1px, rgba(255, 255, 255, 0.4) 1px 6px),
+    linear-gradient(135deg, #e5e8e7, #7b8b91);
+}
+
 .score-wrap {
   background: #ffffff;
   border-color: #d8d8d8;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
   overflow: auto;
@@ -1348,6 +1723,8 @@ body[data-dice-theme="glitter"] .die::after {
   border-collapse: collapse;
   color: #333333;
   font-family: var(--font-ui);
+  height: 100%;
+  min-height: 0;
   min-width: 0;
   table-layout: fixed;
   width: 100%;
@@ -1402,6 +1779,7 @@ body[data-dice-theme="glitter"] .die::after {
 }
 
 .score-last-move {
+  align-items: center;
   background: #fff7d8;
   border: 1px solid #e5bc35;
   border-radius: 6px;
@@ -1411,6 +1789,7 @@ body[data-dice-theme="glitter"] .die::after {
   font-weight: 800;
   line-height: 1.2;
   margin: 0 0 6px;
+  min-width: 0;
   overflow: hidden;
   padding: 5px 8px;
   text-overflow: ellipsis;
@@ -1426,8 +1805,8 @@ body[data-dice-theme="glitter"] .die::after {
   background: #ffffff;
   border: 1px solid #5e5e5e;
   font-size: 1.05rem;
-  height: 29px;
-  padding: 2px 5px;
+  height: 32px;
+  padding: 3px 6px;
   position: relative;
   text-align: right;
   vertical-align: middle;
@@ -1492,6 +1871,18 @@ body[data-dice-theme="glitter"] .die::after {
 .score-table thead th.is-me,
 .score-player-cell.is-me {
   box-shadow: inset 0 0 0 1px rgba(34, 34, 34, 0.18);
+}
+
+.score-table thead th.is-left-player,
+.score-player-cell.is-left-player {
+  background: #f4f7f5;
+  color: #7a8780;
+}
+
+.score-table thead th.is-left-player .score-player-initial,
+.score-player-cell.is-left-player .score-value,
+.score-player-cell.is-left-player .summary-value {
+  color: #7a8780;
 }
 
 .score-row-sixes td,
@@ -1685,6 +2076,51 @@ body[data-dice-theme="glitter"] .die::after {
 .empty-cell {
   display: block;
   min-height: 18px;
+}
+
+.score-undo-cell {
+  align-items: center;
+  background: #fff1b9;
+  border: 1px solid #df8f20;
+  border-radius: 4px;
+  bottom: 2px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.48);
+  color: #6c5300;
+  display: grid;
+  justify-items: center;
+  left: 2px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  right: 2px;
+  top: 2px;
+}
+
+.score-undo-cell:hover:not(:disabled) {
+  background: #ffe58a;
+  border-color: #b86b12;
+}
+
+.score-undo-cell .score-value {
+  font-size: 1.08rem;
+  line-height: 1;
+  min-width: 0;
+  transform: translateY(-3px);
+}
+
+.score-undo-text {
+  bottom: 1px;
+  color: #805e00;
+  font-family: var(--font-ui);
+  font-size: 0.54rem;
+  font-weight: 950;
+  left: 0;
+  letter-spacing: 0;
+  line-height: 1;
+  position: absolute;
+  right: 0;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .score-value {
@@ -2081,8 +2517,8 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .dice-zone {
-    gap: 12px;
-    grid-template-columns: minmax(0, 1fr) 128px;
+    gap: 0;
+    grid-template-columns: minmax(0, 1fr);
     margin-top: 12px;
   }
 
@@ -2105,11 +2541,11 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .felt-area {
-    grid-template-rows: minmax(264px, 1fr) minmax(54px, auto);
+    grid-template-rows: minmax(278px, 1fr) minmax(54px, auto);
   }
 
   body.in-game .dice-3d-stage {
-    min-height: 264px;
+    min-height: 278px;
   }
 
   body.in-game .table-label {
@@ -2150,12 +2586,14 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .roll-box {
-    align-content: center;
+    right: 7px;
+    top: 7px;
   }
 
   body.in-game .roll-button {
-    font-size: 1rem;
-    min-height: 48px;
+    font-size: 0.86rem;
+    min-height: 32px;
+    padding: 7px 11px;
   }
 
   body.in-game .roll-meta {
@@ -2164,16 +2602,18 @@ body[data-dice-theme="glitter"] .die::after {
 
   body.in-game .play-tools {
     gap: 9px;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
     margin-top: 10px;
     padding-top: 9px;
   }
 
-  body.in-game .dice-customizer {
+  body.in-game .dice-customizer,
+  body.in-game .felt-customizer {
     gap: 6px;
   }
 
-  body.in-game .dice-customizer legend {
+  body.in-game .dice-customizer legend,
+  body.in-game .felt-customizer legend {
     display: none;
   }
 
@@ -2196,12 +2636,8 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .score-table {
+    height: calc(100% - 28px);
     min-width: 0;
-  }
-
-  body.in-game .score-caption-inner {
-    column-gap: 10px;
-    padding: 4px 12px 5px;
   }
 
   body.in-game .score-last-move {
@@ -2210,11 +2646,16 @@ body[data-dice-theme="glitter"] .die::after {
     padding: 4px 7px;
   }
 
+  body.in-game .score-caption-inner {
+    column-gap: 10px;
+    padding: 4px 12px 5px;
+  }
+
   body.in-game .score-table th,
   body.in-game .score-table td {
     font-size: 1rem;
-    height: 27px;
-    padding: 2px 4px;
+    height: 31px;
+    padding: 2px 5px;
   }
 
   body.in-game .score-table thead th {
@@ -2367,9 +2808,9 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .dice-zone {
-    gap: 8px;
+    gap: 0;
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
     margin-top: 10px;
     min-height: 0;
   }
@@ -2393,7 +2834,7 @@ body[data-dice-theme="glitter"] .die::after {
 
   body.in-game .roll-box {
     align-items: center;
-    grid-template-columns: 128px minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, auto);
   }
 
   body.in-game .roll-meta {
@@ -2402,7 +2843,7 @@ body[data-dice-theme="glitter"] .die::after {
 
   body.in-game .play-tools {
     gap: 8px;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
     margin-top: 9px;
     padding-top: 8px;
   }
@@ -2415,18 +2856,19 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .score-table {
+    height: calc(100% - 28px);
     min-width: 0;
-  }
-
-  body.in-game .score-caption-inner {
-    column-gap: 10px;
-    padding: 5px 12px 4px;
   }
 
   body.in-game .score-last-move {
     font-size: var(--font-size-min);
     margin-bottom: 5px;
     padding: 4px 7px;
+  }
+
+  body.in-game .score-caption-inner {
+    column-gap: 10px;
+    padding: 5px 12px 4px;
   }
 
   body.in-game .score-caption-inner::before,
@@ -2443,9 +2885,9 @@ body[data-dice-theme="glitter"] .die::after {
   body.in-game .score-table th,
   body.in-game .score-table td {
     font-size: 1rem;
-    height: 27px;
-    line-height: 1;
-    padding: 2px 4px;
+    height: 31px;
+    line-height: 1.05;
+    padding: 2px 5px;
   }
 
   body.in-game .score-table thead th {
@@ -2505,7 +2947,7 @@ body[data-dice-theme="glitter"] .die::after {
   body.in-game .score-table th,
   body.in-game .score-table td {
     font-size: 0.96rem;
-    height: 25px;
+    height: 28px;
     padding: 2px 3px;
   }
 
@@ -2568,6 +3010,10 @@ body[data-dice-theme="glitter"] .die::after {
     height: 31px;
   }
 
+  .score-last-move {
+    font-size: 0.82rem;
+  }
+
   .score-table td:first-child {
     font-size: 1.08rem;
   }
@@ -2580,10 +3026,6 @@ body[data-dice-theme="glitter"] .die::after {
   .score-button,
   .score-value {
     font-size: 1.28rem;
-  }
-
-  .score-last-move {
-    font-size: 0.82rem;
   }
 
   .setup-panel {
@@ -2605,8 +3047,21 @@ body[data-dice-theme="glitter"] .die::after {
     justify-content: stretch;
   }
 
+  .host-controls {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .host-select {
+    max-width: none;
+    width: 100%;
+  }
+
   .rule-toggle,
-  .lobby-actions .action-button {
+  .lobby-actions .action-button,
+  .host-controls .small {
     width: 100%;
   }
 
@@ -2615,6 +3070,10 @@ body[data-dice-theme="glitter"] .die::after {
   .rule-toggle-grid,
   .play-tools {
     grid-template-columns: 1fr;
+  }
+
+  .felt-customizer {
+    justify-content: flex-start;
   }
 
   .active-dice {
@@ -2626,7 +3085,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   .roll-box {
-    grid-template-columns: 1fr;
+    max-width: min(250px, calc(100% - 108px));
   }
 }
 

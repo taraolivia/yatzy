@@ -15556,6 +15556,13 @@ const bp = {
   none: {
     name: "Plastic"
   },
+  plastic: {
+    name: "Polished Plastic",
+    color: 14540253,
+    roughness: 0.32,
+    metalness: 0,
+    envMapIntensity: 0.75
+  },
   perfectmetal: {
     name: "Perfect Metal",
     color: 14540253,
@@ -15710,7 +15717,21 @@ const bp = {
           f.translate(x, M), f.rotate(F * (Math.PI / 180)), f.translate(-x, -M), _.translate(x, M), _.rotate(F * (Math.PI / 180)), _.translate(-x, -M);
         }
       }
-      if (d instanceof HTMLImageElement)
+      if (e.type == "dpip" && n >= 2) {
+        let F = e.values[(n - 2) % e.values.length], P = p.width / 2, G = p.height / 2, z = p.width * 0.225, L = p.width * 0.067, I = {
+          1: [[0, 0]],
+          2: [[-1, -1], [1, 1]],
+          3: [[-1, -1], [0, 0], [1, 1]],
+          4: [[-1, -1], [1, -1], [-1, 1], [1, 1]],
+          5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]],
+          6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]]
+        }[F] || [];
+        f.fillStyle = r, _.fillStyle = "#000000";
+        for (let D = 0; D < I.length; D++) {
+          let q = I[D];
+          f.beginPath(), f.arc(P + q[0] * z, G + q[1] * z, L, 0, Math.PI * 2), f.fill(), _.beginPath(), _.arc(P + q[0] * z, G + q[1] * z, L, 0, Math.PI * 2), _.fill();
+        }
+      } else if (d instanceof HTMLImageElement)
         u = !0, f.drawImage(d, 0, 0, d.width, d.height, 0, 0, p.width, p.height);
       else {
         let F = w / (1 + 2 * s), P = p.height / 2 + 10, G = p.width / 2;
@@ -15779,7 +15800,7 @@ const bp = {
       case "d4":
         return this[i](wt.d4.vertices, wt.d4.faces, t, -0.1, Math.PI * 7 / 6, 0.96);
       case "d6":
-        return this[i](wt.d6.vertices, wt.d6.faces, t, 0.1, Math.PI / 4, 0.96);
+        return this[i](wt.d6.vertices, wt.d6.faces, t, 0.1, Math.PI / 4, 0.84);
       case "d8":
         return this[i](wt.d8.vertices, wt.d8.faces, t, 0, -Math.PI / 4 / 2, 0.965);
       case "d10":
@@ -15823,8 +15844,15 @@ const bp = {
     for (let g = 0; g < t.length; ++g) {
       let p = t[g], f = p.length - 1, v = Math.PI * 2 / f;
       u = p[f] + 1;
-      for (let w = 0; w < f - 2; ++w)
-        r.push(...e[p[0]].toArray()), r.push(...e[p[w + 1]].toArray()), r.push(...e[p[w + 2]].toArray()), c.subVectors(e[p[w + 2]], e[p[w + 1]]), d.subVectors(e[p[0]], e[p[w + 1]]), c.cross(d), c.normalize(), l.push(...c.toArray()), l.push(...c.toArray()), l.push(...c.toArray()), a.push((Math.cos(s) + 1 + i) / 2 / (1 + i), (Math.sin(s) + 1 + i) / 2 / (1 + i)), a.push((Math.cos(v * (w + 1) + s) + 1 + i) / 2 / (1 + i), (Math.sin(v * (w + 1) + s) + 1 + i) / 2 / (1 + i)), a.push((Math.cos(v * (w + 2) + s) + 1 + i) / 2 / (1 + i), (Math.sin(v * (w + 2) + s) + 1 + i) / 2 / (1 + i));
+      for (let w = 0; w < f - 2; ++w) {
+        const x = e[p[0]], M = e[p[w + 1]], E = e[p[w + 2]];
+        r.push(...x.toArray()), r.push(...M.toArray()), r.push(...E.toArray()), c.subVectors(E, M), d.subVectors(x, M), c.cross(d), c.normalize();
+        if (u == 0)
+          l.push(...x.clone().normalize().toArray()), l.push(...M.clone().normalize().toArray()), l.push(...E.clone().normalize().toArray());
+        else
+          l.push(...c.toArray()), l.push(...c.toArray()), l.push(...c.toArray());
+        a.push((Math.cos(s) + 1 + i) / 2 / (1 + i), (Math.sin(s) + 1 + i) / 2 / (1 + i)), a.push((Math.cos(v * (w + 1) + s) + 1 + i) / 2 / (1 + i), (Math.sin(v * (w + 1) + s) + 1 + i) / 2 / (1 + i)), a.push((Math.cos(v * (w + 2) + s) + 1 + i) / 2 / (1 + i), (Math.sin(v * (w + 2) + s) + 1 + i) / 2 / (1 + i));
+      }
       let _ = (f - 2) * 3;
       for (let w = 0; w < _ / 3; w++)
         o.addGroup(m, 3, u), m += 3;

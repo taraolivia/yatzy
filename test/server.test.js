@@ -27,6 +27,12 @@ async function post(baseUrl, path, body) {
   return { response, payload };
 }
 
+async function get(baseUrl, path) {
+  const response = await fetch(`${baseUrl}${path}`);
+  const payload = await response.json();
+  return { response, payload };
+}
+
 test("test-only dice fixtures still protect held dice", async () => {
   const baseUrl = await listen();
   try {
@@ -106,6 +112,24 @@ test("rejects client-supplied dice outside test fixture mode", async () => {
   }
 });
 
+test("expands chat emoji shortcuts in stored messages", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    const { game, playerToken } = created.payload;
+
+    const chatted = await post(baseUrl, `/api/games/${game.code}/chat`, {
+      playerToken,
+      message: "Bra kast :cry :lol: :dice"
+    });
+
+    assert.equal(chatted.response.status, 200);
+    assert.equal(chatted.payload.game.chat.at(-1).message, "Bra kast 😢 😂 🎲");
+  } finally {
+    await close();
+  }
+});
+
 test("announces a server-authoritative roll before committing its forced visual result", async () => {
   const baseUrl = await listen();
   try {
@@ -150,6 +174,83 @@ test("announces a server-authoritative roll before committing its forced visual 
     assert.deepEqual(completed.payload.game.dice, plannedDice);
     assert.equal(completed.payload.game.rollsUsed, 1);
   } finally {
+    await close();
+  }
+});
+
+test("canceling a planned roll still commits the planned dice", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    let { game, playerToken } = created.payload;
+
+    const started = await post(baseUrl, `/api/games/${game.code}/start`, {
+      playerToken,
+      version: game.version
+    });
+    game = started.payload.game;
+
+    const planned = await post(baseUrl, `/api/games/${game.code}/roll`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(planned.response.status, 200);
+    game = planned.payload.game;
+    const plannedDice = [...game.activeRoll.dice];
+
+    const canceled = await post(baseUrl, `/api/games/${game.code}/cancel`, {
+      playerToken,
+      rollId: game.activeRoll.id
+    });
+    assert.equal(canceled.response.status, 200);
+    assert.equal(canceled.payload.game.activeRoll, null);
+    assert.deepEqual(canceled.payload.game.dice, plannedDice);
+    assert.equal(canceled.payload.game.rollsUsed, 1);
+    assert.equal(canceled.payload.game.log[0].type, "roll");
+  } finally {
+    await close();
+  }
+});
+
+test("expired planned rolls are committed instead of discarded", async () => {
+  const baseUrl = await listen();
+  const originalNow = Date.now;
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    let { game, playerToken } = created.payload;
+
+    const started = await post(baseUrl, `/api/games/${game.code}/start`, {
+      playerToken,
+      version: game.version
+    });
+    game = started.payload.game;
+
+    const planned = await post(baseUrl, `/api/games/${game.code}/roll`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(planned.response.status, 200);
+    game = planned.payload.game;
+    const plannedDice = [...game.activeRoll.dice];
+    const expiredRollTime = Date.parse(game.activeRoll.startedAt) + 31_000;
+    Date.now = () => expiredRollTime;
+
+    const fetched = await get(baseUrl, `/api/games/${game.code}`);
+    assert.equal(fetched.response.status, 200);
+    assert.equal(fetched.payload.game.activeRoll, null);
+    assert.deepEqual(fetched.payload.game.dice, plannedDice);
+    assert.equal(fetched.payload.game.rollsUsed, 1);
+    game = fetched.payload.game;
+
+    const left = await post(baseUrl, `/api/games/${game.code}/leave`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(left.response.status, 200);
+    assert.equal(left.payload.game.activeRoll, null);
+    assert.equal(left.payload.game.players[0].isActive, false);
+  } finally {
+    Date.now = originalNow;
     await close();
   }
 });
@@ -597,6 +698,180 @@ test("forced mode can disable early Yatzy placement", async () => {
       categoryId: "yatzy"
     });
     assert.equal(scored.response.status, 400);
+  } finally {
+    await close();
+  }
+});
+
+test("leaving during your turn marks you inactive and advances to the next active player", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    let { game, playerToken: taraToken, seatId: taraSeatId } = created.payload;
+    const code = game.code;
+
+    const joined = await post(baseUrl, `/api/games/${code}/join`, { name: "Liv" });
+    assert.equal(joined.response.status, 200);
+    const livToken = joined.payload.playerToken;
+    const livSeatId = joined.payload.seatId;
+    game = joined.payload.game;
+
+    const started = await post(baseUrl, `/api/games/${code}/start`, {
+      playerToken: taraToken,
+      version: game.version
+    });
+    assert.equal(started.response.status, 200);
+    game = started.payload.game;
+    assert.equal(game.currentSeatId, taraSeatId);
+
+    const left = await post(baseUrl, `/api/games/${code}/leave`, {
+      playerToken: taraToken,
+      version: game.version
+    });
+    assert.equal(left.response.status, 200);
+    game = left.payload.game;
+    assert.equal(game.players.find((player) => player.seatId === taraSeatId).isActive, false);
+    assert.equal(game.currentSeatId, livSeatId);
+    assert.equal(game.hostSeatId, livSeatId);
+
+    const rolled = await post(baseUrl, `/api/games/${code}/roll`, {
+      playerToken: livToken,
+      version: game.version,
+      dice: [1, 2, 3, 4, 5]
+    });
+    assert.equal(rolled.response.status, 200);
+    game = rolled.payload.game;
+
+    const rejoined = await post(baseUrl, `/api/games/${code}/join`, {
+      name: "Tara",
+      playerToken: taraToken
+    });
+    assert.equal(rejoined.response.status, 200);
+    game = rejoined.payload.game;
+    assert.equal(game.players.find((player) => player.seatId === taraSeatId).isActive, true);
+    assert.equal(game.currentSeatId, livSeatId);
+  } finally {
+    await close();
+  }
+});
+
+test("host can transfer host, skip a turn, and remove a player", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    let { game, playerToken: taraToken, seatId: taraSeatId } = created.payload;
+    const code = game.code;
+
+    const joined = await post(baseUrl, `/api/games/${code}/join`, { name: "Liv" });
+    const livToken = joined.payload.playerToken;
+    const livSeatId = joined.payload.seatId;
+    game = joined.payload.game;
+
+    const transferred = await post(baseUrl, `/api/games/${code}/transfer`, {
+      playerToken: taraToken,
+      version: game.version,
+      seatId: livSeatId
+    });
+    assert.equal(transferred.response.status, 200);
+    game = transferred.payload.game;
+    assert.equal(game.hostSeatId, livSeatId);
+
+    const started = await post(baseUrl, `/api/games/${code}/start`, {
+      playerToken: livToken,
+      version: game.version
+    });
+    assert.equal(started.response.status, 200);
+    game = started.payload.game;
+    assert.equal(game.currentSeatId, taraSeatId);
+
+    const skipped = await post(baseUrl, `/api/games/${code}/skip`, {
+      playerToken: livToken,
+      version: game.version
+    });
+    assert.equal(skipped.response.status, 200);
+    game = skipped.payload.game;
+    assert.equal(game.currentSeatId, livSeatId);
+
+    const removed = await post(baseUrl, `/api/games/${code}/remove`, {
+      playerToken: livToken,
+      version: game.version,
+      seatId: taraSeatId
+    });
+    assert.equal(removed.response.status, 200);
+    game = removed.payload.game;
+    assert.equal(game.players.find((player) => player.seatId === taraSeatId).isActive, false);
+    assert.equal(game.currentSeatId, livSeatId);
+  } finally {
+    await close();
+  }
+});
+
+test("last score can be undone until the next turn starts", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "maxi" });
+    let { game, playerToken } = created.payload;
+    const code = game.code;
+
+    const started = await post(baseUrl, `/api/games/${code}/start`, {
+      playerToken,
+      version: game.version
+    });
+    game = started.payload.game;
+
+    const rolled = await post(baseUrl, `/api/games/${code}/roll`, {
+      playerToken,
+      version: game.version,
+      dice: [1, 1, 2, 3, 4, 5]
+    });
+    game = rolled.payload.game;
+
+    const scored = await post(baseUrl, `/api/games/${code}/score`, {
+      playerToken,
+      version: game.version,
+      categoryId: "ones"
+    });
+    assert.equal(scored.response.status, 200);
+    game = scored.payload.game;
+    assert.equal(game.players[0].scores.ones, 2);
+    assert.equal(game.players[0].savedRolls, 2);
+    assert.equal(game.lastScoreUndo.categoryId, "ones");
+
+    const undone = await post(baseUrl, `/api/games/${code}/undo`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(undone.response.status, 200);
+    game = undone.payload.game;
+    assert.equal(game.players[0].scores.ones, null);
+    assert.equal(game.players[0].savedRolls, 0);
+    assert.deepEqual(game.dice, [1, 1, 2, 3, 4, 5]);
+    assert.equal(game.rollsUsed, 1);
+    assert.equal(game.currentSeatId, game.players[0].seatId);
+    assert.equal(game.lastScoreUndo, null);
+
+    const rescored = await post(baseUrl, `/api/games/${code}/score`, {
+      playerToken,
+      version: game.version,
+      categoryId: "ones"
+    });
+    assert.equal(rescored.response.status, 200);
+    game = rescored.payload.game;
+
+    const nextRoll = await post(baseUrl, `/api/games/${code}/roll`, {
+      playerToken,
+      version: game.version,
+      dice: [2, 2, 3, 4, 5, 6]
+    });
+    assert.equal(nextRoll.response.status, 200);
+    game = nextRoll.payload.game;
+    assert.equal(game.lastScoreUndo, null);
+
+    const tooLate = await post(baseUrl, `/api/games/${code}/undo`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(tooLate.response.status, 400);
   } finally {
     await close();
   }

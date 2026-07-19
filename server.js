@@ -40,7 +40,43 @@ const MIME_TYPES = {
 
 const games = loadGames();
 const streams = new Map();
-const ROLL_START_DELAY_MS = 350;
+const ROLL_START_DELAY_MS = 60;
+const ROLL_RECOVERY_TIMEOUT_MS = 30_000;
+const CHAT_MAX_LENGTH = 160;
+const CHAT_EMOJI_SHORTCUTS = {
+  cry: "😢",
+  sob: "😭",
+  lol: "😂",
+  laugh: "😂",
+  smile: "🙂",
+  happy: "😄",
+  grin: "😀",
+  wink: "😉",
+  heart: "❤️",
+  love: "❤️",
+  fire: "🔥",
+  clap: "👏",
+  party: "🥳",
+  tada: "🎉",
+  dice: "🎲",
+  yatzy: "🎲",
+  yes: "✅",
+  no: "❌",
+  ok: "👌",
+  thumbsup: "👍",
+  thumbs: "👍",
+  "+1": "👍",
+  "-1": "👎",
+  thanks: "🙏",
+  eyes: "👀",
+  thinking: "🤔",
+  wow: "😮",
+  oops: "😬",
+  cool: "😎",
+  gg: "🤝",
+  lucky: "🍀",
+  star: "⭐",
+};
 
 function loadGames() {
   try {
@@ -55,7 +91,7 @@ function loadGames() {
 function persistGames() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const payload = JSON.stringify(Object.fromEntries(games), null, 2);
-  const tempFile = `${DATA_FILE}.tmp`;
+  const tempFile = `${DATA_FILE}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(tempFile, payload);
   fs.renameSync(tempFile, DATA_FILE);
 }
@@ -104,7 +140,16 @@ function cleanName(name) {
 
 function cleanChatMessage(message) {
   if (typeof message !== "string") return "";
-  return message.trim().replace(/\s+/g, " ").slice(0, 160);
+  const expanded = expandChatEmojiShortcuts(message).trim().replace(/\s+/g, " ");
+  return Array.from(expanded).slice(0, CHAT_MAX_LENGTH).join("");
+}
+
+function expandChatEmojiShortcuts(message) {
+  return String(message || "").replace(/(^|[^\w&])(:[+\-\w]+:?)(?=$|[^\w])/g, (match, prefix, shortcode) => {
+    const key = shortcode.slice(1, shortcode.endsWith(":") ? -1 : undefined).toLowerCase();
+    const emoji = CHAT_EMOJI_SHORTCUTS[key];
+    return emoji ? `${prefix}${emoji}` : match;
+  });
 }
 
 function cleanForcedMode(value) {
@@ -136,6 +181,7 @@ function createPlayer(name) {
     scores: null,
     savedRolls: 0,
     forcedDeferredCategoryId: null,
+    leftAt: null,
     joinedAt: new Date().toISOString()
   };
 }
@@ -170,6 +216,7 @@ function createGame({ mode, name }) {
     held: Array.from({ length: rules.diceCount }, () => false),
     rollsUsed: 0,
     activeRoll: null,
+    lastScoreUndo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     log: [],
@@ -225,6 +272,7 @@ function publicGame(game) {
     held: game.held,
     rollsUsed: game.rollsUsed,
     activeRoll: game.activeRoll || null,
+    lastScoreUndo: publicLastScoreUndo(game),
     scoreReadyRolls,
     baseRolls: rollLimit,
     rollLimit,
@@ -236,11 +284,14 @@ function publicGame(game) {
     upperBonus: ruleSettings.upperBonus,
     categories: rules.categories,
     scorePreview: preview,
+    activePlayerCount: game.players.filter(isPlayerActive).length,
     players: game.players.map((player) => ({
       seatId: player.seatId,
       name: player.name,
       savedRolls: player.savedRolls,
       isHost: player.seatId === game.hostSeatId,
+      isActive: isPlayerActive(player),
+      leftAt: player.leftAt || null,
       scores: player.scores,
       totals: calculateTotals(game.mode, player.scores, { forcedMode, ruleSettings })
     })),
@@ -251,10 +302,25 @@ function publicGame(game) {
   };
 }
 
+function publicLastScoreUndo(game) {
+  const undo = game.lastScoreUndo;
+  if (!undo) return null;
+  return {
+    id: undo.id,
+    playerSeatId: undo.playerSeatId,
+    playerName: undo.playerName,
+    categoryId: undo.categoryId,
+    categoryLabel: undo.categoryLabel,
+    points: undo.points
+  };
+}
+
 function winnersFor(game) {
   if (game.status !== "finished") return [];
   const ruleSettings = ruleSettingsFor(game);
-  const totals = game.players.map((player) => ({
+  const eligiblePlayers = game.players.filter(isPlayerActive);
+  if (!eligiblePlayers.length) return [];
+  const totals = eligiblePlayers.map((player) => ({
     seatId: player.seatId,
     name: player.name,
     total: calculateTotals(game.mode, player.scores, { forcedMode: Boolean(game.forcedMode), ruleSettings }).total
@@ -266,6 +332,56 @@ function winnersFor(game) {
 function getPlayerByToken(game, token) {
   if (typeof token !== "string") return null;
   return game.players.find((player) => player.token === token) || null;
+}
+
+function isPlayerActive(player) {
+  return !player.leftAt;
+}
+
+function requireActiveMember(player) {
+  if (!isPlayerActive(player)) throw httpError(403, "Du har forlatt spillet. Bli med igjen for \u00e5 fortsette.");
+}
+
+function isHost(game, player) {
+  return player.seatId === game.hostSeatId;
+}
+
+function requireHost(game, player) {
+  if (!isHost(game, player)) throw httpError(403, "Bare host kan gj\u00f8re dette.");
+}
+
+function activePlayers(game) {
+  return game.players.filter(isPlayerActive);
+}
+
+function activeIncompletePlayers(game) {
+  return game.players.filter((player) => isPlayerActive(player) && !isScorecardComplete(game.mode, player.scores));
+}
+
+function playerIndexBySeat(game, seatId) {
+  return game.players.findIndex((player) => player.seatId === seatId);
+}
+
+function assignHostIfNeeded(game) {
+  if (game.hostSeatId && game.players.some((player) => player.seatId === game.hostSeatId && isPlayerActive(player))) return;
+  const nextHost = activePlayers(game)[0] || null;
+  game.hostSeatId = nextHost?.seatId || null;
+}
+
+function resetTurnState(game, rules = getRules(game.mode)) {
+  game.dice = [];
+  game.held = Array.from({ length: rules.diceCount }, () => false);
+  game.rollsUsed = 0;
+  game.activeRoll = null;
+}
+
+function setTurnIndex(game, index) {
+  game.turnIndex = index;
+  game.currentSeatId = index >= 0 && game.players[index] ? game.players[index].seatId : null;
+}
+
+function clearLastScoreUndo(game) {
+  game.lastScoreUndo = null;
 }
 
 function assertVersion(game, version) {
@@ -302,14 +418,14 @@ function saveAndBroadcast(game) {
 function startGame(game, player, version) {
   assertVersion(game, version);
   if (game.status !== "lobby") throw httpError(400, "Spillet er allerede startet.");
+  requireActiveMember(player);
   if (!game.players.some((entry) => entry.seatId === player.seatId)) throw httpError(403, "Du er ikke med i rommet.");
+  const firstPlayerIndex = findNextPlayerIndex(game, -1);
+  if (firstPlayerIndex === -1) throw httpError(400, "Ingen aktive spillere er klare.");
   game.status = "playing";
-  game.turnIndex = 0;
-  game.currentSeatId = game.players[0].seatId;
-  game.dice = [];
-  game.held = Array.from({ length: getRules(game.mode).diceCount }, () => false);
-  game.rollsUsed = 0;
-  game.activeRoll = null;
+  setTurnIndex(game, firstPlayerIndex);
+  resetTurnState(game);
+  clearLastScoreUndo(game);
   addLog(game, `${player.name} startet spillet.`);
   touch(game);
 }
@@ -317,6 +433,7 @@ function startGame(game, player, version) {
 function updateGameSettings(game, player, version, settings) {
   assertVersion(game, version);
   if (game.status !== "lobby") throw httpError(400, "Innstillingene kan bare endres før spillet starter.");
+  requireActiveMember(player);
   if (!game.players.some((entry) => entry.seatId === player.seatId)) throw httpError(403, "Du er ikke med i rommet.");
 
   const forcedMode = Object.prototype.hasOwnProperty.call(settings, "forcedMode")
@@ -346,6 +463,7 @@ function updateGameSettings(game, player, version, settings) {
 
 function restartGame(game, player, version) {
   assertVersion(game, version);
+  requireActiveMember(player);
   if (!game.players.some((entry) => entry.seatId === player.seatId)) throw httpError(403, "Du er ikke med i rommet.");
   if (game.status !== "finished") throw httpError(400, "Arket er ikke ferdig ennå.");
 
@@ -357,12 +475,9 @@ function restartGame(game, player, version) {
   }
 
   game.status = "playing";
-  game.turnIndex = 0;
-  game.currentSeatId = game.players[0]?.seatId || null;
-  game.dice = [];
-  game.held = Array.from({ length: rules.diceCount }, () => false);
-  game.rollsUsed = 0;
-  game.activeRoll = null;
+  setTurnIndex(game, findNextPlayerIndex(game, -1));
+  resetTurnState(game, rules);
+  clearLastScoreUndo(game);
   game.log = [];
   addLog(game, `${player.name} startet et nytt ark.`);
   touch(game);
@@ -370,6 +485,7 @@ function restartGame(game, player, version) {
 
 function requireActiveTurn(game, player) {
   if (game.status !== "playing") throw httpError(400, "Spillet er ikke i gang.");
+  requireActiveMember(player);
   if (game.currentSeatId !== player.seatId) throw httpError(403, "Det er ikke din tur.");
 }
 
@@ -398,6 +514,33 @@ function earlyYatzyCategory(game, player, nextCategory = nextForcedCategoryForPl
   return scoreCategory(game.mode, yatzy.id, game.dice, ruleSettings) > 0 ? yatzy : null;
 }
 
+function activeRollAge(activeRoll) {
+  const startedAt = new Date(activeRoll?.startedAt).getTime();
+  if (!Number.isFinite(startedAt)) return 0;
+  return Date.now() - startedAt;
+}
+
+function commitActiveRoll(game, activeRoll = game.activeRoll) {
+  if (!activeRoll || game.activeRoll?.id !== activeRoll.id) return false;
+  const player = game.players.find((entry) => entry.seatId === activeRoll.seatId);
+  if (!player) throw httpError(409, "Spilleren som kastet finnes ikke lenger.");
+
+  game.activeRoll = null;
+  try {
+    rollDice(game, player, game.version, activeRoll.dice, activeRoll.useSavedRoll);
+  } catch (error) {
+    game.activeRoll = activeRoll;
+    throw error;
+  }
+  return true;
+}
+
+function commitExpiredActiveRoll(game) {
+  if (!game.activeRoll) return false;
+  if (activeRollAge(game.activeRoll) <= ROLL_RECOVERY_TIMEOUT_MS) return false;
+  return commitActiveRoll(game, game.activeRoll);
+}
+
 function rollDice(game, player, version, dice = null, useSavedRoll = false) {
   assertVersion(game, version);
   requireActiveTurn(game, player);
@@ -416,6 +559,7 @@ function rollDice(game, player, version, dice = null, useSavedRoll = false) {
     throw httpError(400, message);
   }
 
+  clearLastScoreUndo(game);
   const firstRoll = game.dice.length === 0;
   const nextDice = firstRoll ? Array.from({ length: rules.diceCount }, () => 0) : [...game.dice];
 
@@ -464,12 +608,7 @@ function beginSynchronizedRoll(game, player, version, useSavedRoll = false) {
   requireActiveTurn(game, player);
 
   if (game.activeRoll) {
-    const age = Date.now() - new Date(game.activeRoll.startedAt).getTime();
-    if (Number.isFinite(age) && age > 30_000 && game.activeRoll.seatId === player.seatId) {
-      game.activeRoll = null;
-    } else {
-      throw httpError(409, "Et terningkast er allerede i gang.");
-    }
+    throw httpError(409, "Et terningkast er allerede i gang.");
   }
 
   const rules = getRules(game.mode);
@@ -485,6 +624,7 @@ function beginSynchronizedRoll(game, player, version, useSavedRoll = false) {
     throw httpError(400, message);
   }
 
+  clearLastScoreUndo(game);
   const firstRoll = game.dice.length === 0;
   const diceIndexes = Array.from(
     { length: rules.diceCount },
@@ -521,22 +661,14 @@ function completeSynchronizedRoll(game, player, rollId) {
   const activeRoll = game.activeRoll;
   if (!activeRoll || activeRoll.id !== rollId) throw httpError(409, "Kastet finnes ikke lenger.");
   if (activeRoll.seatId !== player.seatId) throw httpError(403, "Bare spilleren som kastet kan fullf\u00f8re kastet.");
-
-  game.activeRoll = null;
-  try {
-    rollDice(game, player, game.version, activeRoll.dice, activeRoll.useSavedRoll);
-  } catch (error) {
-    game.activeRoll = activeRoll;
-    throw error;
-  }
+  commitActiveRoll(game, activeRoll);
 }
 
 function cancelSynchronizedRoll(game, player, rollId) {
   const activeRoll = game.activeRoll;
   if (!activeRoll || activeRoll.id !== rollId) return;
   if (activeRoll.seatId !== player.seatId) throw httpError(403, "Bare spilleren som kastet kan avbryte kastet.");
-  game.activeRoll = null;
-  touch(game);
+  commitActiveRoll(game, activeRoll);
 }
 
 function toggleHold(game, player, version, index) {
@@ -546,6 +678,7 @@ function toggleHold(game, player, version, index) {
   const rules = getRules(game.mode);
   if (!Number.isInteger(index) || index < 0 || index >= rules.diceCount) throw httpError(400, "Ugyldig terning.");
   if (game.rollsUsed === 0) throw httpError(400, "Kast f\u00f8rst, s\u00e5 kan du holde terninger.");
+  clearLastScoreUndo(game);
   game.held[index] = !game.held[index];
   addLog(
     game,
@@ -581,6 +714,24 @@ function scoreTurn(game, player, version, categoryId) {
   }
 
   const points = scoreCategory(game.mode, categoryId, game.dice, ruleSettingsFor(game));
+  game.lastScoreUndo = {
+    id: crypto.randomUUID(),
+    playerSeatId: player.seatId,
+    playerName: player.name,
+    categoryId,
+    categoryLabel: category.label,
+    points,
+    previousScore: player.scores[categoryId],
+    previousSavedRolls: player.savedRolls,
+    previousForcedDeferredCategoryId: player.forcedDeferredCategoryId,
+    previousStatus: game.status,
+    previousCurrentSeatId: game.currentSeatId,
+    previousTurnIndex: game.turnIndex,
+    previousDice: [...game.dice],
+    previousHeld: [...game.held],
+    previousRollsUsed: game.rollsUsed,
+    previousLog: game.log.map((entry) => ({ ...entry }))
+  };
   player.scores[categoryId] = points;
   if (earlyYatzy?.id === categoryId && nextCategory) {
     player.forcedDeferredCategoryId = nextCategory.id;
@@ -607,26 +758,18 @@ function scoreTurn(game, player, version, categoryId) {
     }
   );
 
-  const allComplete = game.players.every((entry) => isScorecardComplete(game.mode, entry.scores));
-  if (allComplete) {
+  if (!activeIncompletePlayers(game).length && activePlayers(game).length > 0) {
     game.status = "finished";
     game.currentSeatId = null;
-    game.dice = [];
-    game.held = Array.from({ length: rules.diceCount }, () => false);
-    game.rollsUsed = 0;
-    game.activeRoll = null;
+    resetTurnState(game, rules);
     addLog(game, "Spillet er ferdig.");
     touch(game);
     return;
   }
 
   const nextIndex = findNextPlayerIndex(game);
-  game.turnIndex = nextIndex;
-  game.currentSeatId = game.players[nextIndex].seatId;
-  game.dice = [];
-  game.held = Array.from({ length: rules.diceCount }, () => false);
-  game.rollsUsed = 0;
-  game.activeRoll = null;
+  setTurnIndex(game, nextIndex);
+  resetTurnState(game, rules);
   touch(game);
 }
 
@@ -645,13 +788,145 @@ function sendChat(game, player, message) {
   touch(game);
 }
 
-function findNextPlayerIndex(game) {
-  const count = game.players.length;
-  for (let offset = 1; offset <= count; offset += 1) {
-    const index = (game.turnIndex + offset) % count;
-    if (!isScorecardComplete(game.mode, game.players[index].scores)) return index;
+function leaveGame(game, player, version) {
+  assertVersion(game, version);
+  if (game.activeRoll) throw httpError(409, "Vent til terningkastet er ferdig.");
+
+  if (game.status === "lobby") {
+    const index = playerIndexBySeat(game, player.seatId);
+    if (index === -1) throw httpError(403, "Du er ikke med i rommet.");
+    game.players.splice(index, 1);
+    assignHostIfNeeded(game);
+    addLog(game, `${player.name} forlot rommet.`);
+    touch(game);
+    return;
   }
-  return game.turnIndex;
+
+  requireActiveMember(player);
+  clearLastScoreUndo(game);
+  player.leftAt = new Date().toISOString();
+  addLog(game, `${player.name} forlot spillet.`);
+  assignHostIfNeeded(game);
+  if (game.currentSeatId === player.seatId) advanceTurn(game, game.turnIndex);
+  touch(game);
+}
+
+function transferHost(game, player, version, seatId) {
+  assertVersion(game, version);
+  requireActiveMember(player);
+  requireHost(game, player);
+  const nextHost = game.players.find((entry) => entry.seatId === seatId);
+  if (!nextHost) throw httpError(404, "Fant ikke spilleren.");
+  if (!isPlayerActive(nextHost)) throw httpError(400, "Spilleren har forlatt spillet.");
+  if (nextHost.seatId === game.hostSeatId) return;
+  game.hostSeatId = nextHost.seatId;
+  addLog(game, `${nextHost.name} er host n\u00e5.`);
+  touch(game);
+}
+
+function removePlayer(game, player, version, seatId) {
+  assertVersion(game, version);
+  requireActiveMember(player);
+  requireHost(game, player);
+  if (game.activeRoll) throw httpError(409, "Vent til terningkastet er ferdig.");
+  if (seatId === player.seatId) throw httpError(400, "Bruk G\u00e5 ut for deg selv.");
+  const targetIndex = playerIndexBySeat(game, seatId);
+  if (targetIndex === -1) throw httpError(404, "Fant ikke spilleren.");
+  const target = game.players[targetIndex];
+
+  clearLastScoreUndo(game);
+  if (game.status === "lobby") {
+    game.players.splice(targetIndex, 1);
+    assignHostIfNeeded(game);
+    addLog(game, `${target.name} ble fjernet fra rommet.`);
+    touch(game);
+    return;
+  }
+
+  if (!isPlayerActive(target)) return;
+  target.leftAt = new Date().toISOString();
+  assignHostIfNeeded(game);
+  addLog(game, `${target.name} ble tatt ut av spillet.`);
+  if (game.currentSeatId === target.seatId) advanceTurn(game, targetIndex);
+  touch(game);
+}
+
+function skipTurn(game, player, version) {
+  assertVersion(game, version);
+  requireActiveMember(player);
+  requireHost(game, player);
+  if (game.status !== "playing") throw httpError(400, "Spillet er ikke i gang.");
+  if (game.activeRoll) throw httpError(409, "Vent til terningkastet er ferdig.");
+  const skipped = game.players.find((entry) => entry.seatId === game.currentSeatId);
+  if (!skipped) throw httpError(400, "Ingen spiller har turen akkurat n\u00e5.");
+  clearLastScoreUndo(game);
+  addLog(game, `${skipped.name} ble hoppet over.`);
+  advanceTurn(game, playerIndexBySeat(game, skipped.seatId));
+  touch(game);
+}
+
+function undoLastScore(game, player, version) {
+  assertVersion(game, version);
+  requireActiveMember(player);
+  if (game.activeRoll) throw httpError(409, "Vent til terningkastet er ferdig.");
+  const undo = game.lastScoreUndo;
+  if (!undo) throw httpError(400, "Det er ingen scoring \u00e5 angre.");
+  if (undo.playerSeatId !== player.seatId && !isHost(game, player)) {
+    throw httpError(403, "Bare spilleren som scoret eller host kan angre.");
+  }
+  const target = game.players.find((entry) => entry.seatId === undo.playerSeatId);
+  if (!target) throw httpError(404, "Fant ikke spilleren.");
+
+  target.scores[undo.categoryId] = undo.previousScore;
+  target.savedRolls = Number(undo.previousSavedRolls) || 0;
+  target.forcedDeferredCategoryId = undo.previousForcedDeferredCategoryId || null;
+  game.status = undo.previousStatus;
+  game.currentSeatId = undo.previousCurrentSeatId;
+  game.turnIndex = undo.previousTurnIndex;
+  game.dice = Array.isArray(undo.previousDice) ? [...undo.previousDice] : [];
+  game.held = Array.isArray(undo.previousHeld) ? [...undo.previousHeld] : Array.from({ length: getRules(game.mode).diceCount }, () => false);
+  game.rollsUsed = Number(undo.previousRollsUsed) || 0;
+  game.activeRoll = null;
+  game.log = Array.isArray(undo.previousLog) ? undo.previousLog.map((entry) => ({ ...entry })) : game.log;
+  game.lastScoreUndo = null;
+  addLog(game, `${player.name} angret scoringen p\u00e5 ${undo.categoryLabel}.`, {
+    type: "undo",
+    playerName: player.name,
+    targetName: undo.playerName,
+    category: undo.categoryLabel,
+    categoryId: undo.categoryId,
+    points: undo.points
+  });
+  touch(game);
+}
+
+function advanceTurn(game, fromIndex = game.turnIndex) {
+  const rules = getRules(game.mode);
+  const activeCount = activePlayers(game).length;
+  const remainingCount = activeIncompletePlayers(game).length;
+  if (activeCount > 0 && remainingCount === 0) {
+    game.status = "finished";
+    game.currentSeatId = null;
+    resetTurnState(game, rules);
+    addLog(game, "Spillet er ferdig.");
+    return;
+  }
+
+  const nextIndex = findNextPlayerIndex(game, fromIndex);
+  setTurnIndex(game, nextIndex);
+  resetTurnState(game, rules);
+  if (nextIndex === -1) addLog(game, "Spillet venter p\u00e5 at noen kommer tilbake.");
+}
+
+function findNextPlayerIndex(game, fromIndex = game.turnIndex) {
+  const count = game.players.length;
+  if (!count) return -1;
+  for (let offset = 1; offset <= count; offset += 1) {
+    const index = (((fromIndex + offset) % count) + count) % count;
+    const player = game.players[index];
+    if (isPlayerActive(player) && !isScorecardComplete(game.mode, player.scores)) return index;
+  }
+  return -1;
 }
 
 async function handleApi(req, res, url) {
@@ -668,6 +943,7 @@ async function handleApi(req, res, url) {
   const action = match[2] || "";
   const game = games.get(code);
   if (!game) return jsonResponse(res, 404, { error: "Fant ikke rommet." });
+  if (commitExpiredActiveRoll(game)) saveAndBroadcast(game);
 
   if (req.method === "GET" && !action) {
     return jsonResponse(res, 200, { game: publicGame(game) });
@@ -682,10 +958,23 @@ async function handleApi(req, res, url) {
   if (action === "join") {
     const existing = getPlayerByToken(game, body.playerToken);
     if (existing) {
+      const wasAway = !isPlayerActive(existing);
+      const previousName = existing.name;
       existing.name = cleanName(body.name || existing.name);
-      addLog(game, `${existing.name} kom tilbake.`);
-      touch(game);
-      saveAndBroadcast(game);
+      existing.leftAt = null;
+      assignHostIfNeeded(game);
+      if (game.status === "playing" && !game.currentSeatId && !isScorecardComplete(game.mode, existing.scores)) {
+        setTurnIndex(game, playerIndexBySeat(game, existing.seatId));
+        resetTurnState(game);
+      }
+      if (wasAway) {
+        addLog(game, `${existing.name} kom tilbake.`);
+        touch(game);
+        saveAndBroadcast(game);
+      } else if (existing.name !== previousName) {
+        touch(game);
+        saveAndBroadcast(game);
+      }
       return jsonResponse(res, 200, { game: publicGame(game), playerToken: existing.token, seatId: existing.seatId });
     }
 
@@ -696,6 +985,7 @@ async function handleApi(req, res, url) {
     const player = createPlayer(body.name);
     player.scores = createEmptyScores(game.mode);
     game.players.push(player);
+    assignHostIfNeeded(game);
     addLog(game, `${player.name} ble med i rommet.`);
     touch(game);
     saveAndBroadcast(game);
@@ -711,6 +1001,16 @@ async function handleApi(req, res, url) {
     updateGameSettings(game, player, body.version, body);
   } else if (action === "restart") {
     restartGame(game, player, body.version);
+  } else if (action === "leave") {
+    leaveGame(game, player, body.version);
+  } else if (action === "transfer") {
+    transferHost(game, player, body.version, body.seatId);
+  } else if (action === "remove") {
+    removePlayer(game, player, body.version, body.seatId);
+  } else if (action === "skip") {
+    skipTurn(game, player, body.version);
+  } else if (action === "undo") {
+    undoLastScore(game, player, body.version);
   } else if (action === "roll") {
     if (body.dice !== undefined) {
       if (process.env.ALLOW_TEST_DICE !== "true") {
@@ -747,6 +1047,7 @@ function handleEvents(req, res, url) {
     jsonResponse(res, 404, { error: "Fant ikke rommet." });
     return true;
   }
+  if (commitExpiredActiveRoll(game)) saveAndBroadcast(game);
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream; charset=utf-8",
