@@ -130,6 +130,69 @@ test("expands chat emoji shortcuts in stored messages", async () => {
   }
 });
 
+test("stores generated quote chat messages with quote kind", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    const { game, playerToken } = created.payload;
+
+    const quoted = await post(baseUrl, `/api/games/${game.code}/chat`, {
+      playerToken,
+      kind: "quote",
+      message: "Live, laugh, Yatzy."
+    });
+
+    assert.equal(quoted.response.status, 200);
+    assert.equal(quoted.payload.game.chat.at(-1).kind, "quote");
+    assert.equal(quoted.payload.game.chat.at(-1).message, "Live, laugh, Yatzy.");
+
+    const regular = await post(baseUrl, `/api/games/${game.code}/chat`, {
+      playerToken,
+      kind: "sparkles",
+      message: "Vanlig melding"
+    });
+
+    assert.equal(regular.response.status, 200);
+    assert.equal(regular.payload.game.chat.at(-1).kind, "message");
+  } finally {
+    await close();
+  }
+});
+
+test("chat does not advance the gameplay version", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    let { game, playerToken } = created.payload;
+
+    const started = await post(baseUrl, `/api/games/${game.code}/start`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(started.response.status, 200);
+    game = started.payload.game;
+    const gameplayVersion = game.version;
+
+    const chatted = await post(baseUrl, `/api/games/${game.code}/chat`, {
+      playerToken,
+      message: "Hei!"
+    });
+    assert.equal(chatted.response.status, 200);
+    assert.equal(chatted.payload.game.version, gameplayVersion);
+    assert.equal(chatted.payload.game.chat.at(-1).message, "Hei!");
+
+    const rolled = await post(baseUrl, `/api/games/${game.code}/roll`, {
+      playerToken,
+      version: gameplayVersion,
+      dice: [1, 2, 3, 4, 5]
+    });
+    assert.equal(rolled.response.status, 200);
+    assert.deepEqual(rolled.payload.game.dice, [1, 2, 3, 4, 5]);
+  } finally {
+    await close();
+  }
+});
+
 test("announces a server-authoritative roll before committing its forced visual result", async () => {
   const baseUrl = await listen();
   try {
@@ -872,6 +935,82 @@ test("last score can be undone until the next turn starts", async () => {
       version: game.version
     });
     assert.equal(tooLate.response.status, 400);
+  } finally {
+    await close();
+  }
+});
+
+test("host cannot undo another player's last score", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    let { game, playerToken: taraToken } = created.payload;
+    const code = game.code;
+
+    const joined = await post(baseUrl, `/api/games/${code}/join`, { name: "Liv" });
+    const livToken = joined.payload.playerToken;
+    game = joined.payload.game;
+
+    const started = await post(baseUrl, `/api/games/${code}/start`, {
+      playerToken: taraToken,
+      version: game.version
+    });
+    assert.equal(started.response.status, 200);
+    game = started.payload.game;
+
+    const taraRolled = await post(baseUrl, `/api/games/${code}/roll`, {
+      playerToken: taraToken,
+      version: game.version,
+      dice: [1, 1, 2, 3, 4]
+    });
+    assert.equal(taraRolled.response.status, 200);
+    game = taraRolled.payload.game;
+
+    const taraScored = await post(baseUrl, `/api/games/${code}/score`, {
+      playerToken: taraToken,
+      version: game.version,
+      categoryId: "ones"
+    });
+    assert.equal(taraScored.response.status, 200);
+    game = taraScored.payload.game;
+
+    const livRolled = await post(baseUrl, `/api/games/${code}/roll`, {
+      playerToken: livToken,
+      version: game.version,
+      dice: [2, 2, 3, 4, 5]
+    });
+    assert.equal(livRolled.response.status, 200);
+    game = livRolled.payload.game;
+
+    const livScored = await post(baseUrl, `/api/games/${code}/score`, {
+      playerToken: livToken,
+      version: game.version,
+      categoryId: "twos"
+    });
+    assert.equal(livScored.response.status, 200);
+    game = livScored.payload.game;
+    assert.equal(game.players[1].scores.twos, 4);
+    assert.equal(game.lastScoreUndo.playerSeatId, game.players[1].seatId);
+
+    const hostUndo = await post(baseUrl, `/api/games/${code}/undo`, {
+      playerToken: taraToken,
+      version: game.version
+    });
+    assert.equal(hostUndo.response.status, 403);
+
+    const unchanged = await get(baseUrl, `/api/games/${code}`);
+    assert.equal(unchanged.response.status, 200);
+    game = unchanged.payload.game;
+    assert.equal(game.players[1].scores.twos, 4);
+    assert.equal(game.lastScoreUndo.categoryId, "twos");
+
+    const livUndo = await post(baseUrl, `/api/games/${code}/undo`, {
+      playerToken: livToken,
+      version: game.version
+    });
+    assert.equal(livUndo.response.status, 200);
+    game = livUndo.payload.game;
+    assert.equal(game.players[1].scores.twos, null);
   } finally {
     await close();
   }

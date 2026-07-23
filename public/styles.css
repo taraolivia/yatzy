@@ -47,12 +47,16 @@
   --felt-stage-shadow:
     inset 0 0 0 1px rgba(255, 247, 223, 0.2),
     inset 0 18px 46px rgba(39, 22, 11, 0.1);
-  --felt-label: #fff4d7;
-  --felt-label-shadow: 0 1px 3px rgba(50, 26, 10, 0.7);
-  --felt-chip-bg: rgba(84, 45, 18, 0.22);
+  --felt-label: #ffffff;
+  --felt-label-bg: rgba(50, 28, 11, 0.58);
+  --felt-label-border: rgba(255, 247, 223, 0.2);
+  --felt-label-shadow: 0 1px 2px rgba(35, 19, 8, 0.76);
+  --felt-chip-bg: rgba(255, 255, 255, 0.18);
   --felt-roll-bg: rgba(87, 47, 19, 0.5);
   --felt-roll-border: rgba(255, 246, 219, 0.22);
   --felt-roll-shadow: 0 10px 22px rgba(55, 28, 10, 0.18);
+  --felt-roll-text: #ffffff;
+  --felt-roll-text-shadow: 0 1px 2px rgba(35, 19, 8, 0.72);
   --felt-empty: rgba(255, 244, 215, 0.86);
   --felt-ghost-border: rgba(255, 238, 198, 0.48);
   --felt-stage-filter: brightness(1.08) contrast(1.14) saturate(1.12);
@@ -63,59 +67,59 @@
 }
 
 body[data-dice-theme="wooden"] {
-  --die-bg: #b8844e;
-  --die-border: #6d4425;
-  --die-pip: #2a170c;
-  --die-held-bg: #e6c59a;
-  --die-held-border: #7b4d2a;
+  --die-bg: linear-gradient(145deg, #f0c28d 0%, #bd7d3f 58%, #8b501f 100%);
+  --die-border: #754616;
+  --die-pip: #1b0f05;
+  --die-held-bg: linear-gradient(145deg, #f8d6aa 0%, #ce8a48 60%, #96591f 100%);
+  --die-held-border: #7a4715;
 }
 
 body[data-dice-theme="blueGreenMetal"] {
-  --die-bg: #7fc9c1;
-  --die-border: #2c746f;
-  --die-pip: #113938;
-  --die-held-bg: #d7f5ee;
-  --die-held-border: #1d8a70;
+  --die-bg: linear-gradient(145deg, #c7fff7 0%, #70c8c0 48%, #2f837e 100%);
+  --die-border: #216a66;
+  --die-pip: #062e2d;
+  --die-held-bg: linear-gradient(145deg, #effffa 0%, #9ee3dc 56%, #3d9690 100%);
+  --die-held-border: #1a7771;
 }
 
 body[data-dice-theme="rock"] {
-  --die-bg: #b7aca1;
-  --die-border: #746b63;
-  --die-pip: #272320;
-  --die-held-bg: #e5dfd8;
-  --die-held-border: #746b63;
+  --die-bg: linear-gradient(145deg, #e2d8cb 0%, #b8aea3 54%, #8b8177 100%);
+  --die-border: #6a6259;
+  --die-pip: #211e1a;
+  --die-held-bg: linear-gradient(145deg, #f3eee8 0%, #cac0b5 58%, #948a80 100%);
+  --die-held-border: #6f675f;
 }
 
 body[data-dice-theme="smooth"] {
-  --die-bg: #f2a7cb;
-  --die-border: #bd6fa5;
-  --die-pip: #4d263b;
-  --die-held-bg: #ffd6e8;
-  --die-held-border: #bd6fa5;
+  --die-bg: linear-gradient(145deg, #ffdceb 0%, #f3a3c8 54%, #cc6ca4 100%);
+  --die-border: #ae5a91;
+  --die-pip: #3b1830;
+  --die-held-bg: linear-gradient(145deg, #fff0f6 0%, #f6b6d4 56%, #d176ab 100%);
+  --die-held-border: #b35b94;
 }
 
 body[data-dice-theme="smooth-pip"] {
-  --die-bg: #ffffff;
-  --die-border: #d7d0c3;
-  --die-pip: #17211d;
-  --die-held-bg: #f0f7f2;
-  --die-held-border: #1d8a70;
+  --die-bg: linear-gradient(145deg, #ffffff 0%, #fff9ee 58%, #e8ded1 100%);
+  --die-border: #c9bdaa;
+  --die-pip: #151515;
+  --die-held-bg: linear-gradient(145deg, #ffffff 0%, #edf9f3 60%, #cfe7db 100%);
+  --die-held-border: #14846a;
 }
 
 body[data-dice-theme="lavender"] {
-  --die-bg: #c7a7ff;
-  --die-border: #8f6ad6;
-  --die-pip: #191919;
-  --die-held-bg: #eadfff;
-  --die-held-border: #8f6ad6;
+  --die-bg: linear-gradient(145deg, #eee4ff 0%, #cdb0ff 52%, #9671de 100%);
+  --die-border: #7f5fc7;
+  --die-pip: #27124d;
+  --die-held-bg: linear-gradient(145deg, #f7f0ff 0%, #d8c3ff 56%, #9c79e2 100%);
+  --die-held-border: #8260cb;
 }
 
 body[data-dice-theme="gold"] {
-  --die-bg: linear-gradient(145deg, #fff1a8 0%, #f1bb45 46%, #b67818 100%);
-  --die-border: #9f6616;
-  --die-pip: #4b2c08;
-  --die-held-bg: linear-gradient(145deg, #fff7c7 0%, #f4c85b 54%, #c7831e 100%);
-  --die-held-border: #9f6616;
+  --die-bg: linear-gradient(145deg, #fff7bd 0%, #f2c75c 48%, #bd7b1c 100%);
+  --die-border: #9c6412;
+  --die-pip: #3a2400;
+  --die-held-bg: linear-gradient(145deg, #fffbd4 0%, #f5d070 56%, #c98622 100%);
+  --die-held-border: #a26814;
 }
 
 body[data-dice-theme="glitter"] {
@@ -123,154 +127,166 @@ body[data-dice-theme="glitter"] {
     radial-gradient(circle at 24% 28%, rgba(255, 255, 255, 0.98) 0 4%, transparent 5%),
     radial-gradient(circle at 70% 20%, rgba(255, 255, 255, 0.86) 0 3%, transparent 4%),
     radial-gradient(circle at 76% 72%, rgba(255, 255, 255, 0.82) 0 3%, transparent 4%),
-    linear-gradient(145deg, #fff7c7 0%, #f8d66d 42%, #d69828 100%);
-  --die-border: #b8781d;
-  --die-pip: #4c2b08;
+    linear-gradient(145deg, #fff9cc 0%, #f8d86f 44%, #ca8925 100%);
+  --die-border: #a66f17;
+  --die-pip: #412600;
   --die-held-bg:
     radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.98) 0 4%, transparent 5%),
     radial-gradient(circle at 66% 70%, rgba(255, 255, 255, 0.82) 0 3%, transparent 4%),
-    linear-gradient(145deg, #fffbe0 0%, #f9dc7a 48%, #d99a2d 100%);
-  --die-held-border: #b8781d;
+    linear-gradient(145deg, #fffce3 0%, #f9df85 50%, #d1912a 100%);
+  --die-held-border: #aa741b;
 }
 
 body[data-dice-theme="yellow"] {
-  --die-bg: #fff9c7;
-  --die-border: #d19a1f;
-  --die-pip: #5b3508;
-  --die-held-bg: #fff2a6;
-  --die-held-border: #d19a1f;
+  --die-bg: linear-gradient(145deg, #fffbd3 0%, #ffe982 58%, #d8ad30 100%);
+  --die-border: #b48617;
+  --die-pip: #4a3400;
+  --die-held-bg: linear-gradient(145deg, #fffde3 0%, #ffec91 58%, #deb43a 100%);
+  --die-held-border: #b88a19;
 }
 
 body[data-felt-theme="green"] {
   --dice-table-bg:
-    linear-gradient(90deg, rgba(236, 255, 245, 0.14), rgba(236, 255, 245, 0) 18% 82%, rgba(236, 255, 245, 0.1)),
-    repeating-linear-gradient(12deg, rgba(6, 54, 40, 0.18) 0 2px, rgba(192, 246, 219, 0.08) 2px 9px, rgba(12, 82, 58, 0.13) 9px 14px),
-    linear-gradient(135deg, #2f8d68 0%, #1c6049 52%, #0d342b 100%);
+    linear-gradient(90deg, rgba(236, 255, 245, 0.22), rgba(236, 255, 245, 0.04) 18% 82%, rgba(236, 255, 245, 0.16)),
+    repeating-linear-gradient(12deg, rgba(12, 74, 54, 0.12) 0 2px, rgba(205, 255, 229, 0.12) 2px 9px, rgba(20, 98, 70, 0.09) 9px 14px),
+    linear-gradient(135deg, #5ab982 0%, #2f7d5f 52%, #1a503f 100%);
   --dice-table-shadow:
-    inset 0 0 0 1px rgba(224, 255, 239, 0.16),
-    inset 0 22px 70px rgba(9, 55, 41, 0.24),
-    0 18px 36px rgba(16, 58, 45, 0.22);
+    inset 0 0 0 1px rgba(224, 255, 239, 0.26),
+    inset 0 20px 62px rgba(9, 55, 41, 0.15),
+    0 18px 36px rgba(16, 58, 45, 0.18);
   --felt-bg:
-    radial-gradient(circle at 20% 15%, rgba(224, 255, 237, 0.16), transparent 30%),
-    repeating-linear-gradient(92deg, rgba(0, 55, 37, 0.12) 0 1px, transparent 1px 8px, rgba(186, 247, 215, 0.12) 8px 12px),
-    linear-gradient(135deg, rgba(34, 119, 81, 0.76), rgba(9, 65, 48, 0.68));
+    radial-gradient(circle at 20% 15%, rgba(231, 255, 240, 0.24), transparent 31%),
+    repeating-linear-gradient(92deg, rgba(0, 61, 39, 0.09) 0 1px, transparent 1px 8px, rgba(196, 255, 224, 0.15) 8px 12px),
+    linear-gradient(135deg, rgba(65, 147, 102, 0.7), rgba(24, 92, 68, 0.6));
   --felt-saved-bg:
-    linear-gradient(145deg, rgba(223, 255, 238, 0.24), rgba(53, 129, 89, 0.16)),
-    rgba(8, 60, 43, 0.22);
+    linear-gradient(145deg, rgba(229, 255, 240, 0.34), rgba(68, 148, 101, 0.18)),
+    rgba(15, 77, 54, 0.16);
   --felt-stage-bg:
-    radial-gradient(circle at 45% 28%, rgba(224, 255, 237, 0.18), transparent 34%),
-    radial-gradient(circle at 50% 120%, rgba(3, 35, 27, 0.26), transparent 58%),
-    linear-gradient(135deg, rgba(26, 96, 70, 0.28), rgba(5, 42, 32, 0.32));
+    radial-gradient(circle at 42% 24%, rgba(231, 255, 240, 0.28), transparent 36%),
+    radial-gradient(circle at 50% 120%, rgba(8, 49, 36, 0.14), transparent 58%),
+    linear-gradient(135deg, rgba(48, 119, 84, 0.22), rgba(12, 67, 49, 0.22));
   --felt-stage-shadow:
-    inset 0 0 0 1px rgba(225, 255, 239, 0.12),
-    inset 0 22px 58px rgba(4, 34, 26, 0.24);
+    inset 0 0 0 1px rgba(225, 255, 239, 0.2),
+    inset 0 18px 46px rgba(4, 34, 26, 0.12);
   --felt-label: #effff6;
+  --felt-label-bg: rgba(5, 46, 35, 0.56);
+  --felt-label-border: rgba(223, 255, 238, 0.22);
   --felt-label-shadow: 0 1px 3px rgba(3, 32, 24, 0.72);
-  --felt-chip-bg: rgba(5, 49, 36, 0.26);
+  --felt-chip-bg: rgba(255, 255, 255, 0.18);
   --felt-roll-bg: rgba(5, 46, 35, 0.6);
   --felt-roll-border: rgba(223, 255, 238, 0.22);
   --felt-roll-shadow: 0 10px 22px rgba(6, 42, 32, 0.2);
   --felt-empty: rgba(235, 255, 244, 0.88);
   --felt-ghost-border: rgba(213, 255, 232, 0.48);
+  --felt-stage-filter: brightness(1.1) contrast(1.16) saturate(1.14);
 }
 
 body[data-felt-theme="blue"] {
   --dice-table-bg:
-    linear-gradient(90deg, rgba(232, 247, 255, 0.14), rgba(232, 247, 255, 0) 18% 82%, rgba(232, 247, 255, 0.1)),
-    repeating-linear-gradient(12deg, rgba(16, 49, 84, 0.18) 0 2px, rgba(190, 229, 255, 0.08) 2px 9px, rgba(25, 78, 123, 0.13) 9px 14px),
-    linear-gradient(135deg, #3579a5 0%, #205477 52%, #102f4d 100%);
+    linear-gradient(90deg, rgba(232, 247, 255, 0.22), rgba(232, 247, 255, 0.04) 18% 82%, rgba(232, 247, 255, 0.16)),
+    repeating-linear-gradient(12deg, rgba(26, 67, 103, 0.12) 0 2px, rgba(203, 237, 255, 0.12) 2px 9px, rgba(37, 91, 132, 0.09) 9px 14px),
+    linear-gradient(135deg, #66a5ca 0%, #3b759d 52%, #244f73 100%);
   --dice-table-shadow:
-    inset 0 0 0 1px rgba(232, 247, 255, 0.16),
-    inset 0 22px 70px rgba(12, 46, 75, 0.24),
-    0 18px 36px rgba(17, 53, 82, 0.22);
+    inset 0 0 0 1px rgba(232, 247, 255, 0.26),
+    inset 0 20px 62px rgba(12, 46, 75, 0.15),
+    0 18px 36px rgba(17, 53, 82, 0.18);
   --felt-bg:
-    radial-gradient(circle at 20% 15%, rgba(232, 247, 255, 0.17), transparent 30%),
-    repeating-linear-gradient(92deg, rgba(8, 50, 83, 0.12) 0 1px, transparent 1px 8px, rgba(190, 229, 255, 0.12) 8px 12px),
-    linear-gradient(135deg, rgba(40, 112, 156, 0.76), rgba(17, 67, 105, 0.7));
+    radial-gradient(circle at 20% 15%, rgba(236, 250, 255, 0.24), transparent 31%),
+    repeating-linear-gradient(92deg, rgba(8, 58, 92, 0.09) 0 1px, transparent 1px 8px, rgba(201, 236, 255, 0.15) 8px 12px),
+    linear-gradient(135deg, rgba(70, 137, 178, 0.7), rgba(29, 86, 127, 0.62));
   --felt-saved-bg:
-    linear-gradient(145deg, rgba(225, 246, 255, 0.26), rgba(58, 129, 173, 0.16)),
-    rgba(13, 59, 95, 0.24);
+    linear-gradient(145deg, rgba(230, 248, 255, 0.34), rgba(73, 142, 183, 0.18)),
+    rgba(21, 74, 112, 0.16);
   --felt-stage-bg:
-    radial-gradient(circle at 45% 28%, rgba(232, 247, 255, 0.18), transparent 34%),
-    radial-gradient(circle at 50% 120%, rgba(5, 31, 54, 0.28), transparent 58%),
-    linear-gradient(135deg, rgba(30, 85, 125, 0.28), rgba(9, 38, 66, 0.34));
+    radial-gradient(circle at 42% 24%, rgba(236, 250, 255, 0.28), transparent 36%),
+    radial-gradient(circle at 50% 120%, rgba(9, 44, 70, 0.15), transparent 58%),
+    linear-gradient(135deg, rgba(44, 105, 148, 0.22), rgba(14, 58, 91, 0.23));
   --felt-stage-shadow:
-    inset 0 0 0 1px rgba(225, 247, 255, 0.12),
-    inset 0 22px 58px rgba(7, 33, 58, 0.24);
+    inset 0 0 0 1px rgba(225, 247, 255, 0.2),
+    inset 0 18px 46px rgba(7, 33, 58, 0.12);
   --felt-label: #eef9ff;
+  --felt-label-bg: rgba(8, 42, 70, 0.58);
+  --felt-label-border: rgba(225, 247, 255, 0.22);
   --felt-label-shadow: 0 1px 3px rgba(5, 29, 50, 0.72);
-  --felt-chip-bg: rgba(7, 43, 72, 0.27);
+  --felt-chip-bg: rgba(255, 255, 255, 0.18);
   --felt-roll-bg: rgba(8, 42, 70, 0.62);
   --felt-roll-border: rgba(225, 247, 255, 0.24);
   --felt-roll-shadow: 0 10px 22px rgba(7, 35, 61, 0.2);
   --felt-empty: rgba(235, 249, 255, 0.88);
   --felt-ghost-border: rgba(213, 241, 255, 0.5);
+  --felt-stage-filter: brightness(1.1) contrast(1.16) saturate(1.12);
 }
 
 body[data-felt-theme="red"] {
   --dice-table-bg:
-    linear-gradient(90deg, rgba(255, 238, 232, 0.14), rgba(255, 238, 232, 0) 18% 82%, rgba(255, 238, 232, 0.1)),
-    repeating-linear-gradient(12deg, rgba(91, 23, 32, 0.18) 0 2px, rgba(255, 204, 193, 0.08) 2px 9px, rgba(120, 35, 44, 0.13) 9px 14px),
-    linear-gradient(135deg, #9d3d45 0%, #692934 52%, #3b1722 100%);
+    linear-gradient(90deg, rgba(255, 238, 232, 0.22), rgba(255, 238, 232, 0.04) 18% 82%, rgba(255, 238, 232, 0.16)),
+    repeating-linear-gradient(12deg, rgba(101, 31, 40, 0.12) 0 2px, rgba(255, 214, 206, 0.12) 2px 9px, rgba(139, 48, 56, 0.09) 9px 14px),
+    linear-gradient(135deg, #c5656d 0%, #903f49 52%, #622935 100%);
   --dice-table-shadow:
-    inset 0 0 0 1px rgba(255, 232, 224, 0.16),
-    inset 0 22px 70px rgba(76, 18, 28, 0.24),
-    0 18px 36px rgba(70, 27, 35, 0.22);
+    inset 0 0 0 1px rgba(255, 232, 224, 0.26),
+    inset 0 20px 62px rgba(76, 18, 28, 0.15),
+    0 18px 36px rgba(70, 27, 35, 0.18);
   --felt-bg:
-    radial-gradient(circle at 20% 15%, rgba(255, 235, 228, 0.17), transparent 30%),
-    repeating-linear-gradient(92deg, rgba(80, 12, 23, 0.12) 0 1px, transparent 1px 8px, rgba(255, 205, 195, 0.12) 8px 12px),
-    linear-gradient(135deg, rgba(135, 45, 55, 0.78), rgba(72, 20, 32, 0.7));
+    radial-gradient(circle at 20% 15%, rgba(255, 240, 235, 0.24), transparent 31%),
+    repeating-linear-gradient(92deg, rgba(90, 18, 29, 0.09) 0 1px, transparent 1px 8px, rgba(255, 216, 208, 0.15) 8px 12px),
+    linear-gradient(135deg, rgba(156, 64, 73, 0.7), rgba(94, 31, 43, 0.62));
   --felt-saved-bg:
-    linear-gradient(145deg, rgba(255, 235, 228, 0.26), rgba(145, 55, 62, 0.16)),
-    rgba(70, 19, 31, 0.24);
+    linear-gradient(145deg, rgba(255, 238, 232, 0.34), rgba(161, 70, 77, 0.18)),
+    rgba(84, 25, 37, 0.16);
   --felt-stage-bg:
-    radial-gradient(circle at 45% 28%, rgba(255, 235, 228, 0.18), transparent 34%),
-    radial-gradient(circle at 50% 120%, rgba(42, 8, 18, 0.29), transparent 58%),
-    linear-gradient(135deg, rgba(108, 34, 43, 0.3), rgba(52, 12, 24, 0.34));
+    radial-gradient(circle at 42% 24%, rgba(255, 240, 235, 0.28), transparent 36%),
+    radial-gradient(circle at 50% 120%, rgba(54, 13, 25, 0.15), transparent 58%),
+    linear-gradient(135deg, rgba(128, 45, 55, 0.22), rgba(66, 18, 31, 0.23));
   --felt-stage-shadow:
-    inset 0 0 0 1px rgba(255, 233, 225, 0.12),
-    inset 0 22px 58px rgba(45, 9, 19, 0.25);
+    inset 0 0 0 1px rgba(255, 233, 225, 0.2),
+    inset 0 18px 46px rgba(45, 9, 19, 0.12);
   --felt-label: #fff3ee;
+  --felt-label-bg: rgba(62, 13, 24, 0.58);
+  --felt-label-border: rgba(255, 234, 226, 0.22);
   --felt-label-shadow: 0 1px 3px rgba(43, 8, 18, 0.72);
-  --felt-chip-bg: rgba(66, 14, 25, 0.27);
+  --felt-chip-bg: rgba(255, 255, 255, 0.18);
   --felt-roll-bg: rgba(62, 13, 24, 0.62);
   --felt-roll-border: rgba(255, 234, 226, 0.24);
   --felt-roll-shadow: 0 10px 22px rgba(49, 10, 21, 0.2);
   --felt-empty: rgba(255, 241, 236, 0.88);
   --felt-ghost-border: rgba(255, 218, 209, 0.5);
+  --felt-stage-filter: brightness(1.1) contrast(1.16) saturate(1.12);
 }
 
 body[data-felt-theme="mahogany"] {
   --dice-table-bg:
-    linear-gradient(90deg, rgba(255, 242, 222, 0.14), rgba(255, 242, 222, 0) 18% 82%, rgba(255, 242, 222, 0.1)),
-    repeating-linear-gradient(9deg, rgba(72, 32, 13, 0.2) 0 2px, rgba(250, 196, 129, 0.08) 2px 9px, rgba(116, 54, 22, 0.15) 9px 14px),
-    linear-gradient(135deg, #9e5a2c 0%, #713719 49%, #3f1c0c 100%);
+    linear-gradient(90deg, rgba(255, 242, 222, 0.22), rgba(255, 242, 222, 0.04) 18% 82%, rgba(255, 242, 222, 0.16)),
+    repeating-linear-gradient(9deg, rgba(83, 38, 15, 0.14) 0 2px, rgba(255, 207, 151, 0.12) 2px 9px, rgba(133, 65, 29, 0.1) 9px 14px),
+    linear-gradient(135deg, #c57c43 0%, #925125 49%, #633117 100%);
   --dice-table-shadow:
-    inset 0 0 0 1px rgba(255, 234, 204, 0.16),
-    inset 0 22px 70px rgba(63, 25, 9, 0.25),
-    0 18px 36px rgba(65, 32, 15, 0.24);
+    inset 0 0 0 1px rgba(255, 234, 204, 0.26),
+    inset 0 20px 62px rgba(63, 25, 9, 0.15),
+    0 18px 36px rgba(65, 32, 15, 0.19);
   --felt-bg:
-    radial-gradient(circle at 20% 15%, rgba(255, 231, 196, 0.16), transparent 30%),
-    repeating-linear-gradient(92deg, rgba(70, 26, 8, 0.14) 0 1px, transparent 1px 8px, rgba(255, 204, 142, 0.11) 8px 12px),
-    linear-gradient(135deg, rgba(124, 58, 25, 0.76), rgba(61, 25, 10, 0.72));
+    radial-gradient(circle at 20% 15%, rgba(255, 236, 204, 0.24), transparent 31%),
+    repeating-linear-gradient(92deg, rgba(78, 31, 10, 0.1) 0 1px, transparent 1px 8px, rgba(255, 213, 160, 0.14) 8px 12px),
+    linear-gradient(135deg, rgba(148, 75, 34, 0.7), rgba(83, 39, 18, 0.64));
   --felt-saved-bg:
-    linear-gradient(145deg, rgba(255, 228, 189, 0.25), rgba(130, 61, 24, 0.16)),
-    rgba(65, 28, 12, 0.25);
+    linear-gradient(145deg, rgba(255, 232, 196, 0.34), rgba(149, 74, 31, 0.18)),
+    rgba(78, 35, 14, 0.16);
   --felt-stage-bg:
-    radial-gradient(circle at 45% 28%, rgba(255, 230, 194, 0.18), transparent 34%),
-    radial-gradient(circle at 50% 120%, rgba(38, 15, 6, 0.3), transparent 58%),
-    linear-gradient(135deg, rgba(92, 42, 17, 0.3), rgba(43, 17, 7, 0.34));
+    radial-gradient(circle at 42% 24%, rgba(255, 236, 204, 0.28), transparent 36%),
+    radial-gradient(circle at 50% 120%, rgba(50, 20, 7, 0.15), transparent 58%),
+    linear-gradient(135deg, rgba(111, 52, 22, 0.22), rgba(55, 24, 10, 0.23));
   --felt-stage-shadow:
-    inset 0 0 0 1px rgba(255, 231, 197, 0.12),
-    inset 0 22px 58px rgba(39, 15, 6, 0.26);
+    inset 0 0 0 1px rgba(255, 231, 197, 0.2),
+    inset 0 18px 46px rgba(39, 15, 6, 0.12);
   --felt-label: #fff0d8;
+  --felt-label-bg: rgba(62, 25, 9, 0.58);
+  --felt-label-border: rgba(255, 230, 198, 0.22);
   --felt-label-shadow: 0 1px 3px rgba(37, 14, 5, 0.74);
-  --felt-chip-bg: rgba(62, 25, 8, 0.28);
+  --felt-chip-bg: rgba(255, 255, 255, 0.18);
   --felt-roll-bg: rgba(62, 25, 9, 0.62);
   --felt-roll-border: rgba(255, 230, 198, 0.24);
   --felt-roll-shadow: 0 10px 22px rgba(47, 19, 8, 0.22);
   --felt-empty: rgba(255, 239, 214, 0.88);
   --felt-ghost-border: rgba(255, 218, 171, 0.5);
+  --felt-stage-filter: brightness(1.1) contrast(1.16) saturate(1.12);
 }
 
 body[data-felt-theme="steel"] {
@@ -296,14 +312,17 @@ body[data-felt-theme="steel"] {
   --felt-stage-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.26),
     inset 0 22px 58px rgba(82, 96, 104, 0.18);
-  --felt-label: #25333b;
-  --felt-label-shadow: 0 1px 0 rgba(255, 255, 255, 0.46);
-  --felt-chip-bg: rgba(255, 255, 255, 0.3);
-  --felt-roll-bg: rgba(245, 248, 248, 0.72);
-  --felt-roll-border: rgba(55, 72, 82, 0.18);
-  --felt-roll-shadow: 0 10px 22px rgba(58, 73, 82, 0.16);
+  --felt-label: #ffffff;
+  --felt-label-bg: rgba(36, 52, 60, 0.72);
+  --felt-label-border: rgba(255, 255, 255, 0.28);
+  --felt-label-shadow: 0 1px 2px rgba(17, 28, 34, 0.72);
+  --felt-chip-bg: rgba(255, 255, 255, 0.2);
+  --felt-roll-bg: rgba(36, 52, 60, 0.76);
+  --felt-roll-border: rgba(255, 255, 255, 0.26);
+  --felt-roll-shadow: 0 10px 22px rgba(58, 73, 82, 0.2);
   --felt-empty: rgba(36, 52, 60, 0.76);
   --felt-ghost-border: rgba(47, 66, 76, 0.34);
+  --felt-stage-filter: brightness(1.02) contrast(1.18) saturate(1.04);
 }
 
 * {
@@ -804,6 +823,7 @@ input {
   max-height: 200px;
   min-height: 132px;
   overflow: hidden;
+  position: relative;
 }
 
 .chat-list {
@@ -844,10 +864,36 @@ input {
   border-color: #b6dfcf;
 }
 
+.chat-message.is-quote {
+  margin: 3px 0;
+}
+
+.chat-message.is-quote span {
+  background:
+    linear-gradient(135deg, rgba(255, 247, 219, 0.96), rgba(255, 235, 184, 0.96));
+  border-color: #f0d27f;
+  box-shadow: 0 8px 18px rgba(119, 90, 24, 0.13);
+  color: #5b4512;
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1.32;
+  padding: 9px 10px;
+  text-align: center;
+}
+
+.chat-message.is-quote span::before,
+.chat-message.is-quote span::after {
+  color: #a98220;
+  content: '"';
+  font-size: 1.08em;
+  line-height: 0;
+}
+
 .chat-form {
   display: grid;
   gap: 6px;
   grid-template-columns: minmax(0, 1fr) auto auto;
+  position: relative;
 }
 
 .chat-form input {
@@ -865,12 +911,19 @@ input {
   background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 8px;
+  bottom: calc(100% + 6px);
   box-shadow: 0 12px 28px rgba(30, 48, 42, 0.13);
   display: grid;
   gap: 4px;
   grid-column: 1 / -1;
   grid-template-columns: repeat(auto-fit, minmax(28px, 1fr));
+  left: 0;
+  max-height: min(210px, calc(100vh - 180px));
+  overflow-y: auto;
   padding: 6px;
+  position: absolute;
+  right: 0;
+  z-index: 8;
 }
 
 .chat-quote-button {
@@ -1198,37 +1251,36 @@ input {
 
 .table-label {
   align-items: center;
+  background: var(--felt-label-bg);
+  border: 1px solid var(--felt-label-border);
+  border-radius: 999px;
   color: var(--felt-label);
   display: flex;
   font-size: 0.78rem;
   font-weight: 920;
+  gap: 8px;
   justify-content: space-between;
   letter-spacing: 0;
+  padding: 4px 7px;
+  text-shadow: var(--felt-label-shadow);
   text-transform: uppercase;
+  width: max-content;
 }
 
 .felt-area .table-label {
-  gap: 8px;
   inset: 10px auto auto 10px;
   pointer-events: none;
   position: absolute;
-  text-shadow: var(--felt-label-shadow);
-  width: auto;
   z-index: 3;
 }
 
 .table-label span:last-child {
   background: var(--felt-chip-bg);
   border-radius: 999px;
-  padding: 3px 7px;
-}
-
-.felt-area .table-label span:last-child {
-  background: transparent;
+  padding: 2px 6px;
 }
 
 .saved-area .table-label {
-  gap: 8px;
   justify-content: start;
   white-space: nowrap;
 }
@@ -1489,12 +1541,12 @@ body[data-dice-theme="glitter"] .die::after {
 }
 
 .roll-meta {
-  color: var(--felt-label);
+  color: var(--felt-roll-text);
   font-size: 0.78rem;
   font-weight: 800;
   line-height: 1.15;
   text-align: left;
-  text-shadow: var(--felt-label-shadow);
+  text-shadow: var(--felt-roll-text-shadow);
 }
 
 .roll-box .sync-recovery {
@@ -1504,7 +1556,11 @@ body[data-dice-theme="glitter"] .die::after {
 
 .roll-box .roll-meta-saved,
 .roll-box .roll-meta-saved-label {
-  color: var(--felt-label);
+  color: var(--felt-roll-text);
+}
+
+.roll-box .roll-meta-saved:hover {
+  color: var(--felt-roll-text);
 }
 
 .roll-meta-saved,
@@ -1625,78 +1681,78 @@ body[data-dice-theme="glitter"] .die::after {
 }
 
 .swatch.default {
-  background: #fffefa;
+  background: linear-gradient(145deg, #ffffff 0%, #fffdf7 58%, #e8ded1 100%);
 }
 
 .swatch.wooden {
-  background: #9a6638;
+  background: linear-gradient(145deg, #f0c28d 0%, #bd7d3f 58%, #8b501f 100%);
 }
 
 .swatch.blueGreenMetal {
-  background: #4faeaa;
+  background: linear-gradient(145deg, #c7fff7 0%, #70c8c0 48%, #2f837e 100%);
 }
 
 .swatch.rock {
-  background: #9c938a;
+  background: linear-gradient(145deg, #e2d8cb 0%, #b8aea3 54%, #8b8177 100%);
 }
 
 .swatch.smooth {
-  background: #f2a7cb;
+  background: linear-gradient(145deg, #ffdceb 0%, #f3a3c8 54%, #cc6ca4 100%);
 }
 
 .swatch.smooth-pip {
   background:
-    radial-gradient(circle at 50% 50%, #17211d 0 18%, transparent 19%),
-    #ffffff;
+    radial-gradient(circle at 50% 50%, #151515 0 18%, transparent 19%),
+    linear-gradient(145deg, #ffffff 0%, #fff9ee 58%, #e8ded1 100%);
 }
 
 .swatch.lavender {
-  background: #c7a7ff;
+  background: linear-gradient(145deg, #eee4ff 0%, #cdb0ff 52%, #9671de 100%);
 }
 
 .swatch.gold {
-  background: linear-gradient(145deg, #fff1a8, #f1bb45 50%, #9f6616);
+  background: linear-gradient(145deg, #fff7bd 0%, #f2c75c 48%, #bd7b1c 100%);
 }
 
 .swatch.glitter {
   background:
     radial-gradient(circle at 28% 24%, #ffffff 0 10%, transparent 11%),
     radial-gradient(circle at 72% 68%, #ffffff 0 9%, transparent 10%),
-    linear-gradient(145deg, #fff7c7, #f8d66d 50%, #b8781d);
+    linear-gradient(145deg, #fff9cc 0%, #f8d86f 44%, #ca8925 100%);
 }
 
 .swatch.yellow {
-  background: #ffe46b;
+  background: linear-gradient(145deg, #fffbd3 0%, #ffe982 58%, #d8ad30 100%);
 }
 
 .swatch.felt-tavern {
   background:
-    repeating-linear-gradient(18deg, rgba(83, 48, 20, 0.24) 0 2px, rgba(255, 235, 190, 0.1) 2px 8px),
-    linear-gradient(135deg, #c98e4a, #7a421f);
+    repeating-linear-gradient(18deg, rgba(88, 52, 24, 0.16) 0 2px, rgba(255, 239, 203, 0.12) 2px 8px),
+    linear-gradient(135deg, #dcaa68 0%, #bb793a 52%, #8b5228 100%);
 }
 
 .swatch.felt-green {
   background:
-    radial-gradient(circle at 28% 24%, rgba(230, 255, 239, 0.58) 0 12%, transparent 13%),
-    linear-gradient(135deg, #2f8d68, #0d342b);
+    radial-gradient(circle at 28% 24%, rgba(231, 255, 240, 0.62) 0 12%, transparent 13%),
+    linear-gradient(135deg, #5ab982 0%, #2f7d5f 52%, #1a503f 100%);
 }
 
 .swatch.felt-blue {
   background:
-    radial-gradient(circle at 28% 24%, rgba(232, 247, 255, 0.58) 0 12%, transparent 13%),
-    linear-gradient(135deg, #3579a5, #102f4d);
+    radial-gradient(circle at 28% 24%, rgba(236, 250, 255, 0.62) 0 12%, transparent 13%),
+    linear-gradient(135deg, #66a5ca 0%, #3b759d 52%, #244f73 100%);
 }
 
 .swatch.felt-red {
   background:
-    radial-gradient(circle at 28% 24%, rgba(255, 238, 232, 0.58) 0 12%, transparent 13%),
-    linear-gradient(135deg, #9d3d45, #3b1722);
+    radial-gradient(circle at 28% 24%, rgba(255, 240, 235, 0.62) 0 12%, transparent 13%),
+    linear-gradient(135deg, #c5656d 0%, #903f49 52%, #622935 100%);
 }
 
 .swatch.felt-mahogany {
   background:
-    repeating-linear-gradient(22deg, rgba(70, 26, 8, 0.28) 0 2px, rgba(255, 204, 142, 0.12) 2px 8px),
-    linear-gradient(135deg, #9e5a2c, #3f1c0c);
+    repeating-linear-gradient(22deg, rgba(83, 38, 15, 0.18) 0 2px, rgba(255, 207, 151, 0.12) 2px 8px),
+    linear-gradient(135deg, #c57c43 0%, #925125 49%, #633117 100%);
 }
 
 .swatch.felt-steel {
@@ -1784,20 +1840,51 @@ body[data-dice-theme="glitter"] .die::after {
   border: 1px solid #e5bc35;
   border-radius: 6px;
   color: #6c5300;
-  display: block;
+  display: flex;
   font-size: 0.78rem;
   font-weight: 800;
+  gap: 8px;
+  justify-content: space-between;
   line-height: 1.2;
   margin: 0 0 6px;
   min-width: 0;
-  overflow: hidden;
   padding: 5px 8px;
+}
+
+.score-last-move-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .score-last-move.is-empty {
   display: none;
+}
+
+.score-last-move-undo {
+  background: #ffffff;
+  border: 1px solid #df8f20;
+  border-radius: 4px;
+  color: #6c5300;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 950;
+  line-height: 1;
+  padding: 4px 7px;
+  text-transform: uppercase;
+}
+
+.score-last-move-undo:hover:not(:disabled) {
+  background: #ffe58a;
+  border-color: #b86b12;
+}
+
+.score-last-move-undo:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 
 .score-table th,
@@ -2798,6 +2885,11 @@ body[data-dice-theme="glitter"] .die::after {
     padding: 5px 7px;
   }
 
+  body.in-game .chat-message.is-quote span {
+    font-size: 0.92rem;
+    padding: 9px 10px;
+  }
+
   body.in-game .chat-form input {
     min-height: 30px;
     padding: 5px 8px;
@@ -2960,6 +3052,10 @@ body[data-dice-theme="glitter"] .die::after {
   body.in-game .game-log li,
   body.in-game .chat-message span {
     font-size: var(--font-size-min);
+  }
+
+  body.in-game .chat-message.is-quote span {
+    font-size: 0.92rem;
   }
 }
 

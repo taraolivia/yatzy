@@ -166,39 +166,39 @@ const DICE_3D_DIE_RADIUS = DICE_3D_PHYSICS.baseScale * 1.12;
 const DICE_3D_THEMES = {
   default: {
     foreground: "#171614",
-    background: "#fff9ed",
-    outline: "#fff9ed",
+    background: "#fffdf7",
+    outline: "#f4eadc",
     texture: "none",
     material: "glass",
   },
   wooden: {
-    foreground: "#201005",
-    background: "#a66b3b",
-    outline: "#d4a16a",
+    foreground: "#1b0f05",
+    background: "#bd7d3f",
+    outline: "#f0c28d",
     texture: "wood",
     material: "wood",
   },
 
   blueGreenMetal: {
-    foreground: "#ecfffb",
-    background: "#3f918b",
-    outline: "#2d6d69",
+    foreground: "#062e2d",
+    background: "#70c8c0",
+    outline: "#c7fff7",
     texture: "metal",
     material: "metal",
   },
 
   rock: {
-    foreground: "#282420",
-    background: "#b7ada1",
-    outline: "#d1c7bc",
+    foreground: "#211e1a",
+    background: "#b8aea3",
+    outline: "#e2d8cb",
     texture: "stone",
     material: "none",
   },
 
   smooth: {
-    foreground: "#4d263b",
-    background: "#f2a7cb",
-    outline: "#ffd0e3",
+    foreground: "#3b1830",
+    background: "#f3a3c8",
+    outline: "#ffdceb",
     texture: "none",
     material: "plastic",
   },
@@ -206,39 +206,39 @@ const DICE_3D_THEMES = {
   "smooth-pip": {
     foreground: "#151515",
     background: "#fffdf8",
-    outline: "#fffdf8",
+    outline: "#f4eadc",
     texture: "none",
     material: "glass",
   },
 
   lavender: {
-    foreground: "#3b255e",
-    background: "#c8a9ff",
-    outline: "#dfd0ff",
+    foreground: "#27124d",
+    background: "#cdb0ff",
+    outline: "#eee4ff",
     texture: "none",
     material: "plastic",
   },
 
   gold: {
-    foreground: "#4a2d00",
-    background: "#efbc49",
-    outline: "#f8da8a",
+    foreground: "#fffaf0",
+    background: "#f2c75c",
+    outline: "#6b4307",
     texture: "metal",
     material: "metal",
   },
 
   glitter: {
-    foreground: "#543900",
-    background: "#f6d76b",
-    outline: "#fff0ae",
+    foreground: "#fffdf2",
+    background: "#f8d86f",
+    outline: "#7a4c08",
     texture: "glitter",
     material: "plastic",
   },
 
   yellow: {
-    foreground: "#4f3a00",
-    background: "#fff1a8",
-    outline: "#fff8d8",
+    foreground: "#4a3400",
+    background: "#ffe982",
+    outline: "#fffbd3",
     texture: "none",
     material: "glass",
   },
@@ -620,8 +620,9 @@ async function refreshGameState() {
   return payload.game;
 }
 
-async function sendChat(message) {
+async function sendChat(message, options = {}) {
   if (!state.game || !state.playerToken || state.chatPending) return;
+  const { clearInput = true, kind = "message" } = options;
   const cleanMessage = expandChatEmojiShortcuts(message).trim();
   if (!cleanMessage) return;
 
@@ -633,11 +634,12 @@ async function sendChat(message) {
       method: "POST",
       body: JSON.stringify({
         playerToken: state.playerToken,
+        kind,
         message: cleanMessage,
       }),
     });
     state.game = payload.game;
-    if (els.chatInput) els.chatInput.value = "";
+    if (clearInput && els.chatInput) els.chatInput.value = "";
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -784,10 +786,14 @@ function isActiveRollRecoverable(activeRoll = state.game?.activeRoll) {
   return Boolean(activeRoll && activeRollAge(activeRoll) >= ACTIVE_ROLL_RECOVERY_READY_MS);
 }
 
-function canUndoLastScore() {
+function canSeeLastScoreUndo() {
   const undo = state.game?.lastScoreUndo;
-  if (!undo || state.pending || state.isRolling || state.game?.activeRoll) return false;
-  return undo.playerSeatId === state.seatId || amHost();
+  if (!undo) return false;
+  return undo.playerSeatId === state.seatId;
+}
+
+function canUndoLastScore() {
+  return Boolean(canSeeLastScoreUndo() && !state.pending && !state.isRolling && !state.game?.activeRoll);
 }
 
 function canRollDice() {
@@ -1007,8 +1013,10 @@ function tuneDice3dBody(body) {
 }
 
 function dice3dThrowLimits(diceBox = state.dice3d.instance) {
-  const width = Number(diceBox?.display?.containerWidth) || els.dice3dStage?.clientWidth || 0;
-  const height = Number(diceBox?.display?.containerHeight) || els.dice3dStage?.clientHeight || 0;
+  const stageWidth = els.dice3dStage?.clientWidth || 0;
+  const stageHeight = els.dice3dStage?.clientHeight || 0;
+  const width = stageWidth || Number(diceBox?.display?.containerWidth) || 0;
+  const height = stageHeight || Number(diceBox?.display?.containerHeight) || 0;
   const radius = DICE_3D_DIE_RADIUS;
 
   return {
@@ -1856,14 +1864,12 @@ function renderSplitDice(diceEntries, canHold, count) {
 }
 
 function renderDiceSlots(diceEntries, canHold, lane, shouldShowDie) {
-  let laneIndex = -1;
   return diceEntries
     .map((entry) => {
       const isVisible = shouldShowDie(entry);
-      if (isVisible) laneIndex += 1;
       return `
         <span class="dice-slot ${isVisible ? "" : "is-empty"}">
-          ${isVisible ? renderDieButton(entry, canHold, lane, laneIndex) : renderDieGhost()}
+          ${isVisible ? renderDieButton(entry, canHold, lane) : renderDieGhost()}
         </span>
       `;
     })
@@ -1886,7 +1892,7 @@ function renderLegacyDice(diceEntries, canHold) {
   els.legacyDiceRow.innerHTML = diceEntries.map((entry) => renderDieButton(entry, canHold, entry.held ? "held" : "active")).join("");
 }
 
-function renderDieButton(entry, canHold, lane, laneIndex = entry.index) {
+function renderDieButton(entry, canHold, lane) {
   const held = entry.held ? "is-held" : "";
   const saved = lane === "held" && !state.isRolling ? "is-saved" : "";
   const empty = entry.value ? "" : "is-empty";
@@ -1895,7 +1901,7 @@ function renderDieButton(entry, canHold, lane, laneIndex = entry.index) {
   const motion = throwStyle(entry.index);
   const value = entry.value ? `, verdi ${entry.value}` : "";
   const label = entry.held ? `Spart terning ${entry.index + 1}${value}` : `Terning ${entry.index + 1}${value}`;
-  const shortcut = lane === "held" ? heldDieShortcut(laneIndex) : String(entry.index + 1);
+  const shortcut = lane === "held" ? heldDieShortcut(entry.index) : String(entry.index + 1);
   const shortcutAction = lane === "held" ? "Slipp" : "Spar";
   return `<button class="die ${held} ${saved} ${empty} ${rolling}" style="${motion}" type="button" data-hold="${entry.index}" ${disabled} aria-label="${label}. Hurtigtast ${shortcut}" title="${shortcutAction} med tast ${shortcut.toUpperCase()}">${renderPips(entry.value)}<kbd class="die-hotkey" aria-hidden="true">${shortcut.toUpperCase()}</kbd></button>`;
 }
@@ -1947,9 +1953,8 @@ function handleDieShortcut(event) {
   } else {
     const heldPosition = "qwerty".indexOf(String(event.key).toLowerCase());
     if (heldPosition < 0) return;
-    const heldEntries = state.game.dice.map((value, dieIndex) => ({ value, index: dieIndex, held: Boolean(state.game.held[dieIndex]) })).filter((entry) => entry.held);
-    if (!heldEntries[heldPosition]) return;
-    index = heldEntries[heldPosition].index;
+    if (!state.game.held[heldPosition]) return;
+    index = heldPosition;
   }
 
   event.preventDefault();
@@ -2058,8 +2063,14 @@ function renderScoreTable() {
   els.scoreTable.querySelectorAll("[data-score]").forEach((button) => {
     button.addEventListener("click", () => action("score", { categoryId: button.dataset.score }));
   });
-  els.scoreTable.querySelectorAll("[data-undo-score]").forEach((button) => {
+  bindScoreUndoButtons(els.scoreTable);
+  bindScoreUndoButtons(els.scoreLastMove);
+}
+
+function bindScoreUndoButtons(root) {
+  root?.querySelectorAll("[data-undo-score]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (!canUndoLastScore()) return;
       void action("undo");
     });
   });
@@ -2067,13 +2078,14 @@ function renderScoreTable() {
 
 function isLastUndoCell(player, category) {
   const undo = state.game?.lastScoreUndo;
-  return Boolean(undo && canUndoLastScore() && undo.playerSeatId === player.seatId && undo.categoryId === category.id);
+  return Boolean(undo && canSeeLastScoreUndo() && undo.playerSeatId === player.seatId && undo.categoryId === category.id);
 }
 
 function renderUndoScoreButton(player, category, value) {
   const label = `Angre ${value} p\u00e5 ${category.label} for ${player.name}`;
+  const disabled = canUndoLastScore() ? "" : " disabled";
   return `
-    <button class="score-undo-cell" type="button" data-undo-score aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
+    <button class="score-undo-cell" type="button" data-undo-score${disabled} aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">
       <span class="score-value ${value === 0 ? "is-struck" : ""}">${value}</span>
       <span class="score-undo-text">Angre</span>
     </button>
@@ -2086,8 +2098,13 @@ function renderScoreLastMove(game) {
   const undo = game.lastScoreUndo;
   const fallback = undo ? `${undo.playerName} skrev ${undo.points} p\u00e5 ${undo.categoryLabel}.` : "";
   const text = message || fallback;
-  els.scoreLastMove.textContent = text;
-  els.scoreLastMove.classList.toggle("is-empty", !text);
+  const showUndo = canSeeLastScoreUndo();
+  const undoLabel = undo ? `Angre ${undo.points} p\u00e5 ${undo.categoryLabel} for ${undo.playerName}` : "Angre siste score";
+  els.scoreLastMove.innerHTML = `
+    <span class="score-last-move-text">${escapeHtml(text)}</span>
+    ${showUndo ? `<button class="score-last-move-undo" type="button" data-undo-score${canUndoLastScore() ? "" : " disabled"} aria-label="${escapeHtml(undoLabel)}">Angre</button>` : ""}
+  `;
+  els.scoreLastMove.classList.toggle("is-empty", !text && !showUndo);
 }
 
 function scoreGridColumnCount() {
@@ -2533,6 +2550,14 @@ function renderGameOverOverlay() {
 }
 
 function renderChatMessage(entry) {
+  if (entry.kind === "quote") {
+    return `
+      <div class="chat-message is-quote">
+        <span>${escapeHtml(expandChatEmojiShortcuts(entry.message))}</span>
+      </div>
+    `;
+  }
+
   const mine = entry.seatId === state.seatId ? "is-mine" : "";
   return `
     <div class="chat-message ${mine}">
@@ -2789,12 +2814,12 @@ if (els.chatEmojiToggle) {
   });
 }
 if (els.chatEmojiPanel) {
-  els.chatEmojiPanel.addEventListener("click", (event) => {
+  els.chatEmojiPanel.addEventListener("click", async (event) => {
     if (!(event.target instanceof Element)) return;
     const quoteButton = event.target.closest("[data-chat-quote]");
     if (quoteButton) {
-      insertChatText(randomChatQuote());
       toggleChatEmojiPanel(false);
+      await sendChat(randomChatQuote(), { clearInput: false, kind: "quote" });
       return;
     }
 

@@ -144,6 +144,10 @@ function cleanChatMessage(message) {
   return Array.from(expanded).slice(0, CHAT_MAX_LENGTH).join("");
 }
 
+function cleanChatKind(kind) {
+  return kind === "quote" ? "quote" : "message";
+}
+
 function expandChatEmojiShortcuts(message) {
   return String(message || "").replace(/(^|[^\w&])(:[+\-\w]+:?)(?=$|[^\w])/g, (match, prefix, shortcode) => {
     const key = shortcode.slice(1, shortcode.endsWith(":") ? -1 : undefined).toLowerCase();
@@ -398,6 +402,11 @@ function httpError(status, message) {
 
 function touch(game) {
   game.version += 1;
+  game.updatedAt = new Date().toISOString();
+}
+
+function touchChat(game) {
+  // Chat is live room metadata and must not stale gameplay actions.
   game.updatedAt = new Date().toISOString();
 }
 
@@ -773,19 +782,21 @@ function scoreTurn(game, player, version, categoryId) {
   touch(game);
 }
 
-function sendChat(game, player, message) {
+function sendChat(game, player, message, kind = "message") {
   const cleanMessage = cleanChatMessage(message);
   if (!cleanMessage) throw httpError(400, "Skriv en melding f\u00f8rst.");
+  const cleanKind = cleanChatKind(kind);
   if (!game.chat) game.chat = [];
   game.chat.push({
     id: crypto.randomUUID(),
     seatId: player.seatId,
     name: player.name,
+    kind: cleanKind,
     message: cleanMessage,
     at: new Date().toISOString()
   });
   game.chat = game.chat.slice(-32);
-  touch(game);
+  touchChat(game);
 }
 
 function leaveGame(game, player, version) {
@@ -871,8 +882,8 @@ function undoLastScore(game, player, version) {
   if (game.activeRoll) throw httpError(409, "Vent til terningkastet er ferdig.");
   const undo = game.lastScoreUndo;
   if (!undo) throw httpError(400, "Det er ingen scoring \u00e5 angre.");
-  if (undo.playerSeatId !== player.seatId && !isHost(game, player)) {
-    throw httpError(403, "Bare spilleren som scoret eller host kan angre.");
+  if (undo.playerSeatId !== player.seatId) {
+    throw httpError(403, "Bare spilleren som scoret kan angre.");
   }
   const target = game.players.find((entry) => entry.seatId === undo.playerSeatId);
   if (!target) throw httpError(404, "Fant ikke spilleren.");
@@ -1029,7 +1040,7 @@ async function handleApi(req, res, url) {
   } else if (action === "score") {
     scoreTurn(game, player, body.version, body.categoryId);
   } else if (action === "chat") {
-    sendChat(game, player, body.message);
+    sendChat(game, player, body.message, body.kind);
   } else {
     return jsonResponse(res, 404, { error: "Ukjent handling." });
   }
