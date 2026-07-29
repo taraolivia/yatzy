@@ -2,6 +2,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+const zlib = require("node:zlib");
 const {
   createEmptyScores,
   defaultRuleSettings,
@@ -32,11 +33,18 @@ const MIME_TYPES = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml",
+  ".ttf": "font/ttf",
   ".wasm": "application/wasm",
   ".webp": "image/webp",
   ".png": "image/png",
+  ".mp3": "audio/mpeg",
   ".ico": "image/x-icon"
 };
+
+const COMPRESSIBLE_STATIC_TYPES = new Set([".css", ".html", ".js", ".json", ".svg", ".wasm"]);
+const STATIC_COMPRESSION_MIN_BYTES = 1024;
+const VERSIONED_STATIC_CACHE = "public, max-age=31536000, immutable";
+const ASSET_STATIC_CACHE = "public, max-age=604800";
 
 const games = loadGames();
 const streams = new Map();
@@ -44,39 +52,150 @@ const ROLL_START_DELAY_MS = 60;
 const ROLL_RECOVERY_TIMEOUT_MS = 30_000;
 const CHAT_MAX_LENGTH = 160;
 const CHAT_EMOJI_SHORTCUTS = {
+  star: "⭐",
+  heart: "❤️",
+  love: "❤️",
+  "dollar-bag": "💰",
+  moneybag: "💰",
+  "money-bag": "💰",
+  sparkling: "✨",
+  sparkles: "✨",
+  handshake: "🤝",
+  gg: "🤝",
+  goal: "🥅",
+  dice: "🎲",
+  yatzy: "🎲",
+  "firework-explosion": "🎆",
+  fireworks: "🎆",
+  brain: "🧠",
+  muscle: "💪",
+  sword: "⚔️",
+  "stop-sign": "🛑",
+  stop: "🛑",
+  volunteering: "🤲",
+  "thumbs-up": "👍",
+  "thumb-up": "👍",
+  thumbsup: "👍",
+  thumbs: "👍",
+  "+1": "👍",
+  happy: "😄",
+  phoenix: "🐦‍🔥",
+  spring: "🌱",
+  door: "🚪",
+  orc: "🧌",
+  canola: "🌼",
   cry: "😢",
   sob: "😭",
   lol: "😂",
   laugh: "😂",
+  "medieval-crown": "👑",
+  crown: "👑",
+  baby: "👶",
+  lips: "👄",
+  easy: "😌",
+  "smiling-mouth": "🙂",
   smile: "🙂",
-  happy: "😄",
   grin: "😀",
+  "hang-10": "🤙",
+  hand: "👋",
   wink: "😉",
-  heart: "❤️",
-  love: "❤️",
+  champagne: "🍾",
+  "flash-on": "⚡",
+  "chamomile-tea": "🍵",
+  "chef-hat": "👨‍🍳",
+  "thumbs-down": "👎",
+  "-1": "👎",
+  "year-of-dragon": "🐉",
+  dragon: "🐉",
+  "christmas-star": "🌟",
+  "medal-first-place": "🥇",
+  medal: "🥇",
+  "first-place": "🥇",
+  "edvard-munch": "😱",
+  scream: "😱",
+  evil: "😈",
+  "broken-heart": "💔",
+  "in-love": "😍",
+  drama: "🎭",
+  "witchs-hat": "🧙",
+  croissant: "🥐",
+  "human-torch": "🔥",
   fire: "🔥",
+  "old-man": "👴",
+  "child-tasty": "😋",
+  tasty: "😋",
+  "angry-eye": "👁️",
+  "thor-hammer": "🔨",
+  "gold-pot": "🪙",
+  haze: "🌫️",
+  snail: "🐌",
+  "clenched-fist": "✊",
+  "sad-sun": "🌥️",
+  "sun-glasses": "😎",
+  cool: "😎",
+  "lol-surprise": "🤣",
+  "crying-baby": "😭",
+  "old-woman": "👵",
+  "sock-puppet": "🧦",
+  action: "🎬",
+  ignore: "🙈",
+  "nerf-gun": "🔫",
   clap: "👏",
   party: "🥳",
   tada: "🎉",
-  dice: "🎲",
-  yatzy: "🎲",
   yes: "✅",
   no: "❌",
   ok: "👌",
-  thumbsup: "👍",
-  thumbs: "👍",
-  "+1": "👍",
-  "-1": "👎",
   thanks: "🙏",
   eyes: "👀",
   thinking: "🤔",
   wow: "😮",
   oops: "😬",
-  cool: "😎",
-  gg: "🤝",
   lucky: "🍀",
-  star: "⭐",
 };
+const PLAYER_AVATAR_ICONS = [
+  "european-dragon",
+  "giraffe",
+  "dinosaur",
+  "unicorn",
+  "dog",
+  "corgi",
+  "frog",
+  "fox",
+  "cute-hamster",
+  "cat",
+  "kawaii-dinosaur",
+  "owl",
+  "snake",
+  "butterfly",
+  "shark",
+  "flamingo",
+  "lizard",
+  "rabbit",
+  "elephant",
+  "parrot",
+  "octopus",
+  "whale",
+  "horse",
+  "bumblebee",
+  "chameleon",
+  "lion",
+  "cow",
+  "red-panda",
+  "bear",
+  "mouse-animal",
+  "giraffe-full-body",
+  "hedgehog",
+  "hippopotamus",
+  "jellyfish",
+  "clown-fish",
+  "alien",
+  "wizard",
+  "witch",
+  "mummy",
+  "frankensteins-monster",
+  "robot",
+];
 
 function loadGames() {
   try {
@@ -177,17 +296,31 @@ function createCode() {
   return code;
 }
 
-function createPlayer(name) {
+function createPlayer(name, game = null) {
   return {
     seatId: crypto.randomUUID(),
     token: crypto.randomUUID(),
     name: cleanName(name),
+    avatarIcon: randomPlayerAvatarIcon(game),
     scores: null,
     savedRolls: 0,
     forcedDeferredCategoryId: null,
     leftAt: null,
     joinedAt: new Date().toISOString()
   };
+}
+
+function randomPlayerAvatarIcon(game) {
+  const used = new Set((game?.players || []).map((player) => player.avatarIcon).filter(Boolean));
+  const available = PLAYER_AVATAR_ICONS.filter((icon) => !used.has(icon));
+  const pool = available.length ? available : PLAYER_AVATAR_ICONS;
+  return pool[crypto.randomInt(pool.length)];
+}
+
+function fallbackPlayerAvatarIcon(player) {
+  const key = String(player?.seatId || player?.name || "");
+  const hash = crypto.createHash("sha256").update(key).digest();
+  return PLAYER_AVATAR_ICONS[hash[0] % PLAYER_AVATAR_ICONS.length];
 }
 
 function addLog(game, message, details = {}) {
@@ -292,6 +425,7 @@ function publicGame(game) {
     players: game.players.map((player) => ({
       seatId: player.seatId,
       name: player.name,
+      avatarIcon: player.avatarIcon || fallbackPlayerAvatarIcon(player),
       savedRolls: player.savedRolls,
       isHost: player.seatId === game.hostSeatId,
       isActive: isPlayerActive(player),
@@ -993,7 +1127,7 @@ async function handleApi(req, res, url) {
       throw httpError(400, "Spillet er startet. Bare spillere som allerede er med kan komme tilbake.");
     }
 
-    const player = createPlayer(body.name);
+    const player = createPlayer(body.name, game);
     player.scores = createEmptyScores(game.mode);
     game.players.push(player);
     assignHostIfNeeded(game);
@@ -1094,19 +1228,54 @@ function serveStatic(req, res, url) {
     if (error) {
       fs.readFile(path.join(PUBLIC_DIR, "index.html"), (indexError, indexContent) => {
         if (indexError) return textResponse(res, 404, "Not found");
-        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(indexContent);
+        sendStaticContent(req, res, url, "/index.html", indexContent);
       });
       return;
     }
 
-    const ext = path.extname(filePath);
-    res.writeHead(200, {
-      "Content-Type": MIME_TYPES[ext] || "application/octet-stream",
-      "Cache-Control": "no-store"
-    });
-    res.end(content);
+    sendStaticContent(req, res, url, routePath, content);
   });
+}
+
+function sendStaticContent(req, res, url, routePath, content) {
+  const ext = path.extname(routePath);
+  const headers = {
+    "Content-Type": MIME_TYPES[ext] || "application/octet-stream",
+    "Cache-Control": staticCacheControl(url, routePath, ext)
+  };
+
+  if (!shouldCompressStatic(req, ext, content)) {
+    res.writeHead(200, headers);
+    res.end(content);
+    return;
+  }
+
+  zlib.gzip(content, (error, compressed) => {
+    if (error) {
+      res.writeHead(200, headers);
+      res.end(content);
+      return;
+    }
+
+    res.writeHead(200, {
+      ...headers,
+      "Content-Encoding": "gzip",
+      Vary: "Accept-Encoding"
+    });
+    res.end(compressed);
+  });
+}
+
+function staticCacheControl(url, routePath, ext) {
+  if (ext === ".html") return "no-store";
+  if (url.searchParams.has("v")) return VERSIONED_STATIC_CACHE;
+  if (routePath.startsWith("/assets/") || routePath.startsWith("/vendor/")) return ASSET_STATIC_CACHE;
+  return "no-cache";
+}
+
+function shouldCompressStatic(req, ext, content) {
+  const acceptsGzip = /\bgzip\b/.test(String(req.headers["accept-encoding"] || ""));
+  return acceptsGzip && content.length >= STATIC_COMPRESSION_MIN_BYTES && COMPRESSIBLE_STATIC_TYPES.has(ext);
 }
 
 const server = http.createServer(async (req, res) => {

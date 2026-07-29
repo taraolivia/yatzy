@@ -120,11 +120,11 @@ test("expands chat emoji shortcuts in stored messages", async () => {
 
     const chatted = await post(baseUrl, `/api/games/${game.code}/chat`, {
       playerToken,
-      message: "Bra kast :cry :lol: :dice"
+      message: "Bra kast :cry :lol: :dice :medal-first-place: :thumbs-up:"
     });
 
     assert.equal(chatted.response.status, 200);
-    assert.equal(chatted.payload.game.chat.at(-1).message, "Bra kast 😢 😂 🎲");
+    assert.equal(chatted.payload.game.chat.at(-1).message, "Bra kast 😢 😂 🎲 🥇 👍");
   } finally {
     await close();
   }
@@ -154,6 +154,27 @@ test("stores generated quote chat messages with quote kind", async () => {
 
     assert.equal(regular.response.status, 200);
     assert.equal(regular.payload.game.chat.at(-1).kind, "message");
+  } finally {
+    await close();
+  }
+});
+
+test("assigns public avatar icons to room players", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    assert.equal(created.response.status, 201);
+    let { game } = created.payload;
+    assert.match(game.players[0].avatarIcon, /^[a-z0-9-]+$/);
+
+    const joined = await post(baseUrl, `/api/games/${game.code}/join`, {
+      name: "Liv"
+    });
+    assert.equal(joined.response.status, 200);
+    game = joined.payload.game;
+    assert.equal(game.players.length, 2);
+    assert.ok(game.players.every((player) => /^[a-z0-9-]+$/.test(player.avatarIcon)));
+    assert.notEqual(game.players[0].avatarIcon, game.players[1].avatarIcon);
   } finally {
     await close();
   }

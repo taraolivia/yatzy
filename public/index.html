@@ -3,8 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Yatzy with friends</title>
-    <link rel="stylesheet" href="/styles.css?v=20260723-felt-label-contrast">
+    <title>Yatzy</title>
+    <link rel="stylesheet" href="/styles.css?v=20260728-footer-chat-type">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
   </head>
   <body>
     <div class="app">
@@ -18,10 +19,14 @@
           </div>
           <div class="players-list topbar-players" id="playersList"></div>
           <button class="topbar-code" id="copyLink" type="button" title="Kopier romlink">
+            <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/copy.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
             <span id="roomCodeLabel">-----</span>
             <span>Kopier link</span>
           </button>
-          <button class="topbar-leave" id="leaveRoom" type="button">G&aring; ut</button>
+          <button class="topbar-leave" id="leaveRoom" type="button">
+            <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/door.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+            <span>G&aring; ut</span>
+          </button>
         </div>
         <div class="connection" id="connection">Klar</div>
       </header>
@@ -64,7 +69,10 @@
               </label>
             </fieldset>
 
-            <button class="primary action-button" type="submit">Lag rom</button>
+            <button class="primary action-button" type="submit">
+              <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/joystick.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+              <span>Lag rom</span>
+            </button>
           </form>
 
           <form class="panel setup-panel" id="joinForm">
@@ -83,7 +91,10 @@
 
 
 
-            <button class="secondary action-button" type="submit">Bli med</button>
+            <button class="secondary action-button" type="submit">
+              <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/meeting.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+              <span>Bli med</span>
+            </button>
           </form>
         </section>
 
@@ -96,9 +107,15 @@
                   <h1 id="turnTitle">Lobby</h1>
                 </div>
                 <div class="lobby-actions">
-                  <button class="secondary action-button is-hidden" id="rulesToggle" type="button" aria-expanded="false" aria-controls="rulesPanel">Regler</button>
+                  <button class="secondary action-button is-hidden" id="rulesToggle" type="button" aria-expanded="false" aria-controls="rulesPanel">
+                    <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/wrench.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                    <span>Regler</span>
+                  </button>
                   <div class="host-controls is-hidden" id="hostControls"></div>
-                  <button class="primary action-button" id="startGame" type="button">Start spill</button>
+                  <button class="primary action-button" id="startGame" type="button">
+                    <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/play.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                    <span>Start spill</span>
+                  </button>
                 </div>
               </div>
 
@@ -154,7 +171,10 @@
                 </fieldset>
 
                 <div class="rule-actions">
-                  <button class="primary small" id="saveRules" type="submit">Lagre regler</button>
+                  <button class="primary small" id="saveRules" type="submit">
+                    <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/save.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                    <span>Lagre regler</span>
+                  </button>
                 </div>
               </form>
 
@@ -163,14 +183,21 @@
                   <div class="felt-area">
                     <div class="table-label">
                       <span>Kastefelt</span>
-                      <span id="activeDiceLabel">0</span>
+                      <span id="activeDiceLabel" aria-hidden="true"></span>
                     </div>
                     <div class="roll-box">
-                      <button class="primary roll-button" id="rollDice" type="button">Kast</button>
+                      <div class="roll-status" id="rollStatus">Din tur</div>
+                      <button class="primary roll-button" id="rollDice" type="button">
+                        <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/dice.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                        <span>Kast</span>
+                      </button>
                       <div class="roll-meta" id="rollMeta">0 kast brukt</div>
                       <div class="sync-recovery is-hidden" id="syncRecovery" role="status" aria-live="polite">
                         <span id="syncRecoveryText">Spillet er synkronisert igjen.</span>
-                        <button class="secondary small" id="syncRecoveryAction" type="button">Kast p&aring; nytt</button>
+                        <button class="secondary small" id="syncRecoveryAction" type="button">
+                          <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/redo.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                          <span>Kast p&aring; nytt</span>
+                        </button>
                       </div>
                     </div>
                     <div class="dice-3d-stage" id="dice3dStage" aria-hidden="true"></div>
@@ -244,7 +271,7 @@
                 </fieldset>
 
                 <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="true" aria-label="Lyd p&aring;" title="Lyd p&aring;">
-                  <span aria-hidden="true">&#128266;</span>
+                  <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/high-volume.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
                 </button>
               </div>
             </div>
@@ -262,12 +289,22 @@
 
           <aside class="panel room-flow-panel">
             <section class="compact-section chat-section">
-              <h3>Chat</h3>
+              <h3 class="section-title-with-icon">
+                <img class="scribby-icon section-heading-icon" src="https://img.icons8.com/?size=100&amp;id=g40gvDEAPg4B&amp;format=png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                <span>Chat</span>
+              </h3>
               <div class="chat-list" id="chatList" aria-live="polite"></div>
               <form class="chat-form" id="chatForm">
-                <input id="chatInput" name="message" autocomplete="off" maxlength="160" placeholder="Skriv noe...">
-                <button class="secondary small chat-emoji-toggle" id="chatEmojiToggle" type="button" aria-label="Åpne emojipanel" aria-expanded="false" aria-controls="chatEmojiPanel">☺</button>
-                <button class="primary small" id="sendChat" type="submit">Send</button>
+                <div class="chat-compose-preview is-hidden" id="chatComposePreview" aria-live="polite"></div>
+                <input id="chatInput" name="message" autocomplete="off" maxlength="160" placeholder="Skriv noe..." aria-autocomplete="list" aria-controls="chatShortcutSuggestions" aria-expanded="false">
+                <button class="secondary small chat-emoji-toggle" id="chatEmojiToggle" type="button" aria-label="Åpne emojipanel" aria-expanded="false" aria-controls="chatEmojiPanel">
+                  <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/comments.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                </button>
+                <button class="primary small" id="sendChat" type="submit">
+                  <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/paper-plane.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                  <span>Send</span>
+                </button>
+                <div class="chat-shortcut-suggestions is-hidden" id="chatShortcutSuggestions" role="listbox" aria-label="Ikonsnarveier"></div>
                 <div class="chat-emoji-panel is-hidden" id="chatEmojiPanel" role="listbox" aria-label="Emoji"></div>
               </form>
             </section>
@@ -283,10 +320,35 @@
           </aside>
         </section>
       </main>
+      <footer class="site-footer">
+        <span>Designet, kodet og opprettholdt av <a href="https://tara-olivia.netlify.app/" target="_blank" rel="noopener">Tara Olivia Bjørheim</a></span>
+        <span aria-hidden="true">&middot;</span>
+        <a href="https://icons8.com" target="_blank" rel="noopener">Icons by Icons8</a>
+      </footer>
     </div>
 
     <div class="celebration-layer" id="celebrationLayer" aria-hidden="true"></div>
+    <div class="confirm-dialog-layer" id="confirmDialog" aria-hidden="true" inert>
+      <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogMessage">
+        <div class="confirm-dialog-heading">
+          <div class="confirm-dialog-art" id="confirmDialogIcon" aria-hidden="true"></div>
+          <div class="confirm-dialog-copy">
+            <p class="eyebrow" id="confirmDialogEyebrow">Spillrom</p>
+            <h2 id="confirmDialogTitle">Forlate spillet?</h2>
+            <p id="confirmDialogMessage">Du kan komme tilbake fra samme nettleser.</p>
+          </div>
+        </div>
+        <div class="confirm-dialog-actions">
+          <button class="secondary action-button" id="confirmCancel" type="button" data-confirm-action="cancel">
+            <span>Bli her</span>
+          </button>
+          <button class="primary danger action-button" id="confirmConfirm" type="button" data-confirm-action="confirm">
+            <span>G&aring; ut</span>
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js?v=20260720-styled-chat-quotes" defer></script>
+    <script src="/app.js?v=20260728-footer-chat-type" defer></script>
   </body>
 </html>

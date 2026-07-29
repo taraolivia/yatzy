@@ -38,6 +38,7 @@ const els = {
   activeDiceLabel: document.querySelector("#activeDiceLabel"),
   heldDiceLabel: document.querySelector("#heldDiceLabel"),
   rollDice: document.querySelector("#rollDice"),
+  rollStatus: document.querySelector("#rollStatus"),
   rollMeta: document.querySelector("#rollMeta"),
   syncRecovery: document.querySelector("#syncRecovery"),
   syncRecoveryText: document.querySelector("#syncRecoveryText"),
@@ -49,11 +50,20 @@ const els = {
   scoreTable: document.querySelector("#scoreTable"),
   gameLog: document.querySelector("#gameLog"),
   chatForm: document.querySelector("#chatForm"),
+  chatComposePreview: document.querySelector("#chatComposePreview"),
   chatInput: document.querySelector("#chatInput"),
   chatEmojiToggle: document.querySelector("#chatEmojiToggle"),
   chatEmojiPanel: document.querySelector("#chatEmojiPanel"),
+  chatShortcutSuggestions: document.querySelector("#chatShortcutSuggestions"),
   chatList: document.querySelector("#chatList"),
   sendChat: document.querySelector("#sendChat"),
+  confirmDialog: document.querySelector("#confirmDialog"),
+  confirmDialogIcon: document.querySelector("#confirmDialogIcon"),
+  confirmDialogEyebrow: document.querySelector("#confirmDialogEyebrow"),
+  confirmDialogTitle: document.querySelector("#confirmDialogTitle"),
+  confirmDialogMessage: document.querySelector("#confirmDialogMessage"),
+  confirmCancel: document.querySelector("#confirmCancel"),
+  confirmConfirm: document.querySelector("#confirmConfirm"),
   playScoreResizer: document.querySelector("#playScoreResizer"),
   scoreRoomResizer: document.querySelector("#scoreRoomResizer"),
   chatFlowResizer: document.querySelector("#chatFlowResizer"),
@@ -69,9 +79,21 @@ const state = {
   pending: false,
   chatPending: false,
   chatEmojiPanelOpen: false,
+  chatShortcutSuggestions: {
+    open: false,
+    matches: [],
+    activeIndex: 0,
+    tokenStart: -1,
+    tokenEnd: -1,
+  },
   pendingIncomingGame: null,
   incomingRollFinishing: false,
   syncIssue: null,
+  confirmPrompt: {
+    resolve: null,
+    previouslyFocused: null,
+  },
+  playerMenuSeatId: null,
   toastTimer: null,
   celebrationTimer: null,
   celebratedYatzies: new Set(),
@@ -96,6 +118,7 @@ const state = {
     settleResolve: null,
     forcedValues: [],
     startsAt: null,
+    sizeKey: null,
     rollId: 0,
   },
   soundEnabled: loadSoundEnabled(),
@@ -136,8 +159,8 @@ const DICE_3D_SYNC_START_MAX_WAIT_MS = 80;
 const ROLL_RESULT_HOLD_MS = 700;
 const ACTIVE_ROLL_RECOVERY_READY_MS = 31_000;
 const DICE_3D_PHYSICS = {
-  framerate: 1 / 60,
-  shadows: true,
+  framerate: 1 / 50,
+  shadows: false,
   sounds: false,
   color_spotlight: 0xfff6df,
   light_intensity: 0.98,
@@ -245,41 +268,283 @@ const DICE_3D_THEMES = {
 };
 const YATZY_CATEGORY_IDS = new Set(["yatzy", "maxiYatzy"]);
 const CONFETTI_COLORS = ["#f4bf3f", "#e45c4f", "#1d8a70", "#2f6df6", "#ffffff"];
-const CHAT_EMOJI_SHORTCUTS = {
-  cry: "😢",
-  sob: "😭",
-  lol: "😂",
-  laugh: "😂",
-  smile: "🙂",
-  happy: "😄",
-  grin: "😀",
-  wink: "😉",
-  heart: "❤️",
-  love: "❤️",
-  fire: "🔥",
-  clap: "👏",
-  party: "🥳",
-  tada: "🎉",
-  dice: "🎲",
-  yatzy: "🎲",
-  yes: "✅",
-  no: "❌",
-  ok: "👌",
-  thumbsup: "👍",
-  thumbs: "👍",
-  "+1": "👍",
-  "-1": "👎",
-  thanks: "🙏",
-  eyes: "👀",
-  thinking: "🤔",
-  wow: "😮",
-  oops: "😬",
-  cool: "😎",
-  gg: "🤝",
-  lucky: "🍀",
-  star: "⭐",
+const SCRIBBY_ICON_BASE = "https://img.icons8.com/scribby/100/";
+const SCRIBBY_ICON_SOURCES = {
+  heart: { id: "GX9CDrPRBE9L" },
+  "dollar-bag": { id: "qsJWlEBemdcF" },
+  muscle: { id: "0QFN5n45U90Z" },
+  "thumbs-up": { slug: "thumb-up" },
+  phoenix: { id: "EY7SaUN366hk" },
+  "medal-first-place": { id: "aKKkoJQm8mLA" },
+  "broken-heart": { id: "vDnUelr3MyG4" },
+  "witchs-hat": { id: "I5mHUSL24Ua5" },
+  haze: { id: "w5R7cldc5mEM" },
+  "chat-room": { id: "g40gvDEAPg4B" },
+  "party-balloon": { id: "DBtM7FgSssCr" },
+  "get-quote": { id: "DVT6qzRV4Y93" },
 };
-const CHAT_EMOJI_PANEL_SHORTCUTS = ["cry", "sob", "lol", "smile", "happy", "wink", "heart", "fire", "clap", "party", "dice", "yes", "no", "ok", "thumbsup", "-1", "thanks", "eyes", "thinking", "wow", "oops", "cool", "gg", "lucky", "star"];
+const SCRIBBY_AVATAR_ICONS = [
+  ["european-dragon", "European dragon"],
+  ["giraffe", "Giraffe"],
+  ["dinosaur", "Dinosaur"],
+  ["unicorn", "Unicorn"],
+  ["dog", "Dog"],
+  ["corgi", "Corgi"],
+  ["frog", "Frog"],
+  ["fox", "Fox"],
+  ["cute-hamster", "Cute hamster"],
+  ["cat", "Cat"],
+  ["kawaii-dinosaur", "Kawaii dinosaur"],
+  ["owl", "Owl"],
+  ["snake", "Snake"],
+  ["butterfly", "Butterfly"],
+  ["shark", "Shark"],
+  ["flamingo", "Flamingo"],
+  ["lizard", "Lizard"],
+  ["rabbit", "Rabbit"],
+  ["elephant", "Elephant"],
+  ["parrot", "Parrot"],
+  ["octopus", "Octopus"],
+  ["whale", "Whale"],
+  ["horse", "Horse"],
+  ["bumblebee", "Bumblebee"],
+  ["chameleon", "Chameleon"],
+  ["lion", "Lion"],
+  ["cow", "Cow"],
+  ["red-panda", "Red panda"],
+  ["bear", "Bear"],
+  ["mouse-animal", "Mouse"],
+  ["giraffe-full-body", "Giraffe full body"],
+  ["hedgehog", "Hedgehog"],
+  ["hippopotamus", "Hippopotamus"],
+  ["jellyfish", "Jellyfish"],
+  ["clown-fish", "Clown fish"],
+  ["alien", "Alien"],
+  ["wizard", "Wizard"],
+  ["witch", "Witch"],
+  ["mummy", "Mummy"],
+  ["frankensteins-monster", "Frankenstein's monster"],
+  ["robot", "Robot"],
+];
+const SCRIBBY_ICON_NAMES = {
+  ...Object.fromEntries(SCRIBBY_AVATAR_ICONS),
+  action: "Action",
+  approval: "Approval",
+  book: "Book",
+  checkmark: "Checkmark",
+  "clear-symbol": "Clear",
+  clover: "Clover",
+  "code-file": "Code file",
+  comments: "Comments",
+  confetti: "Confetti",
+  cool: "Cool",
+  copy: "Copy",
+  "angry-eye": "Angry eye",
+  baby: "Baby",
+  brain: "Brain",
+  "broken-heart": "Broken heart",
+  canola: "Canola",
+  champagne: "Champagne",
+  "chamomile-tea": "Chamomile tea",
+  "chat-room": "Chat room",
+  "chef-hat": "Chef hat",
+  "child-tasty": "Child tasty",
+  "christmas-star": "Christmas star",
+  "clenched-fist": "Clenched fist",
+  croissant: "Croissant",
+  "crying-baby": "Crying baby",
+  dice: "Dice",
+  "dollar-bag": "Dollar bag",
+  door: "Door",
+  drama: "Drama",
+  easy: "Easy",
+  "edvard-munch": "Edvard Munch",
+  evil: "Evil",
+  eye: "Eye",
+  "firework-explosion": "Firework explosion",
+  "fire-heart": "Fire heart",
+  "flash-on": "Flash on",
+  forward: "Forward",
+  "get-quote": "Get quote",
+  goal: "Goal",
+  "gold-pot": "Gold pot",
+  hand: "Hand",
+  "hang-10": "Hang 10",
+  handshake: "Handshake",
+  happy: "Happy",
+  heart: "Heart",
+  haze: "Haze",
+  "high-volume": "Sound on",
+  "human-torch": "Human torch",
+  idea: "Idea",
+  ignore: "Ignore",
+  info: "Info",
+  "in-love": "In love",
+  joystick: "Joystick",
+  lips: "Lips",
+  lol: "LOL",
+  "lol-surprise": "LOL surprise",
+  maintenance: "Maintenance",
+  "medal-first-place": "Medal first place",
+  "medieval-crown": "Medieval crown",
+  meeting: "Meeting",
+  "monster-face": "Monster face",
+  muscle: "Muscle",
+  "nerf-gun": "Nerf gun",
+  "no-audio": "Sound off",
+  "no-entry": "No entry",
+  "old-man": "Old man",
+  "old-woman": "Old woman",
+  orc: "Orc",
+  "paper-plane": "Paper plane",
+  "party-balloon": "Party balloon",
+  phoenix: "Phoenix",
+  pin: "Pin",
+  play: "Play",
+  redo: "Redo",
+  "sad-ghost": "Sad ghost",
+  "sad-sun": "Sad sun",
+  save: "Save",
+  scream: "Scream",
+  "send-file": "Send file",
+  "small-hearts": "Small hearts",
+  "smiling-mouth": "Smiling mouth",
+  snail: "Snail",
+  "sock-puppet": "Sock puppet",
+  sparkling: "Sparkling",
+  spring: "Spring",
+  star: "Star",
+  "stop-sign": "Stop sign",
+  "sun-glasses": "Sun glasses",
+  sword: "Sword",
+  "thumb-up": "Thumb up",
+  "thumbs-down": "Thumbs down",
+  "thumbs-up": "Thumbs up",
+  "thor-hammer": "Thor hammer",
+  trophy: "Trophy",
+  undo: "Undo",
+  volunteering: "Volunteering",
+  wrench: "Wrench",
+  "witchs-hat": "Witch's hat",
+  "year-of-dragon": "Year of dragon",
+};
+const CHAT_REACTION_ICONS = {
+  star: { icon: "star", emoji: "⭐", label: "Star" },
+  heart: { icon: "heart", emoji: "❤️", label: "Heart" },
+  "dollar-bag": { icon: "dollar-bag", emoji: "💰", label: "Dollar bag" },
+  sparkling: { icon: "sparkling", emoji: "✨", label: "Sparkling" },
+  handshake: { icon: "handshake", emoji: "🤝", label: "Handshake" },
+  goal: { icon: "goal", emoji: "🥅", label: "Goal" },
+  dice: { icon: "dice", emoji: "🎲", label: "Dice" },
+  "firework-explosion": { icon: "firework-explosion", emoji: "🎆", label: "Firework explosion" },
+  brain: { icon: "brain", emoji: "🧠", label: "Brain" },
+  muscle: { icon: "muscle", emoji: "💪", label: "Muscle" },
+  sword: { icon: "sword", emoji: "⚔️", label: "Sword" },
+  "stop-sign": { icon: "stop-sign", emoji: "🛑", label: "Stop sign" },
+  volunteering: { icon: "volunteering", emoji: "🤲", label: "Volunteering" },
+  "thumbs-up": { icon: "thumbs-up", emoji: "👍", label: "Thumbs up" },
+  happy: { icon: "happy", emoji: "😄", label: "Happy" },
+  phoenix: { icon: "phoenix", emoji: "🐦‍🔥", label: "Phoenix" },
+  spring: { icon: "spring", emoji: "🌱", label: "Spring" },
+  door: { icon: "door", emoji: "🚪", label: "Door" },
+  orc: { icon: "orc", emoji: "🧌", label: "Orc" },
+  canola: { icon: "canola", emoji: "🌼", label: "Canola" },
+  lol: { icon: "lol", emoji: "😂", label: "LOL" },
+  "medieval-crown": { icon: "medieval-crown", emoji: "👑", label: "Medieval crown" },
+  baby: { icon: "baby", emoji: "👶", label: "Baby" },
+  lips: { icon: "lips", emoji: "👄", label: "Lips" },
+  easy: { icon: "easy", emoji: "😌", label: "Easy" },
+  "smiling-mouth": { icon: "smiling-mouth", emoji: "🙂", label: "Smiling mouth" },
+  "hang-10": { icon: "hang-10", emoji: "🤙", label: "Hang 10" },
+  hand: { icon: "hand", emoji: "👋", label: "Hand" },
+  champagne: { icon: "champagne", emoji: "🍾", label: "Champagne" },
+  "flash-on": { icon: "flash-on", emoji: "⚡", label: "Flash on" },
+  "chamomile-tea": { icon: "chamomile-tea", emoji: "🍵", label: "Chamomile tea" },
+  "chef-hat": { icon: "chef-hat", emoji: "👨‍🍳", label: "Chef hat" },
+  "thumbs-down": { icon: "thumbs-down", emoji: "👎", label: "Thumbs down" },
+  "year-of-dragon": { icon: "year-of-dragon", emoji: "🐉", label: "Year of dragon" },
+  "christmas-star": { icon: "christmas-star", emoji: "🌟", label: "Christmas star" },
+  "medal-first-place": { icon: "medal-first-place", emoji: "🥇", label: "Medal first place" },
+  "edvard-munch": { icon: "edvard-munch", emoji: "😱", label: "Edvard Munch" },
+  evil: { icon: "evil", emoji: "😈", label: "Evil" },
+  "broken-heart": { icon: "broken-heart", emoji: "💔", label: "Broken heart" },
+  "in-love": { icon: "in-love", emoji: "😍", label: "In love" },
+  drama: { icon: "drama", emoji: "🎭", label: "Drama" },
+  "witchs-hat": { icon: "witchs-hat", emoji: "🧙", label: "Witch's hat" },
+  croissant: { icon: "croissant", emoji: "🥐", label: "Croissant" },
+  "human-torch": { icon: "human-torch", emoji: "🔥", label: "Human torch" },
+  "old-man": { icon: "old-man", emoji: "👴", label: "Old man" },
+  "child-tasty": { icon: "child-tasty", emoji: "😋", label: "Child tasty" },
+  "angry-eye": { icon: "angry-eye", emoji: "👁️", label: "Angry eye" },
+  "thor-hammer": { icon: "thor-hammer", emoji: "🔨", label: "Thor hammer" },
+  "gold-pot": { icon: "gold-pot", emoji: "🪙", label: "Gold pot" },
+  haze: { icon: "haze", emoji: "🌫️", label: "Haze" },
+  snail: { icon: "snail", emoji: "🐌", label: "Snail" },
+  "clenched-fist": { icon: "clenched-fist", emoji: "✊", label: "Clenched fist" },
+  "sad-sun": { icon: "sad-sun", emoji: "🌥️", label: "Sad sun" },
+  "sun-glasses": { icon: "sun-glasses", emoji: "😎", label: "Sun glasses" },
+  "lol-surprise": { icon: "lol-surprise", emoji: "🤣", label: "LOL surprise" },
+  "crying-baby": { icon: "crying-baby", emoji: "😭", label: "Crying baby" },
+  "old-woman": { icon: "old-woman", emoji: "👵", label: "Old woman" },
+  "sock-puppet": { icon: "sock-puppet", emoji: "🧦", label: "Sock puppet" },
+  action: { icon: "action", emoji: "🎬", label: "Action" },
+  ignore: { icon: "ignore", emoji: "🙈", label: "Ignore" },
+  "nerf-gun": { icon: "nerf-gun", emoji: "🔫", label: "Nerf gun" },
+};
+const CHAT_EMOJI_PANEL_SHORTCUTS = [
+  "star", "heart", "dollar-bag", "sparkling", "handshake", "goal", "dice", "firework-explosion", "brain", "muscle",
+  "sword", "stop-sign", "volunteering", "thumbs-up", "happy", "phoenix", "spring", "door", "orc", "canola",
+  "lol", "medieval-crown", "baby", "lips", "easy", "smiling-mouth", "hang-10", "hand", "champagne", "flash-on",
+  "chamomile-tea", "chef-hat", "thumbs-down", "year-of-dragon", "christmas-star", "medal-first-place", "edvard-munch", "evil", "broken-heart", "in-love",
+  "drama", "witchs-hat", "croissant", "human-torch", "old-man", "child-tasty", "angry-eye", "thor-hammer", "gold-pot", "haze",
+  "snail", "clenched-fist", "sad-sun", "sun-glasses", "lol-surprise", "crying-baby", "old-woman", "sock-puppet", "action", "ignore",
+  "nerf-gun",
+];
+Object.assign(CHAT_REACTION_ICONS, {
+  cry: { icon: "sad-ghost", emoji: "😢", label: "Cry" },
+  sob: { icon: "crying-baby", emoji: "😭", label: "Sob" },
+  laugh: { icon: "lol", emoji: "😂", label: "Laugh" },
+  smile: { icon: "smiling-mouth", emoji: "🙂", label: "Smile" },
+  grin: { icon: "happy", emoji: "😀", label: "Grin" },
+  wink: { icon: "in-love", emoji: "😉", label: "Wink" },
+  love: { icon: "heart", emoji: "❤️", label: "Love" },
+  fire: { icon: "human-torch", emoji: "🔥", label: "Fire" },
+  clap: { icon: "hand", emoji: "👏", label: "Clap" },
+  party: { icon: "party-balloon", emoji: "🥳", label: "Party" },
+  tada: { icon: "firework-explosion", emoji: "🎉", label: "Tada" },
+  yatzy: { icon: "dice", emoji: "🎲", label: "Yatzy" },
+  yes: { icon: "checkmark", emoji: "✅", label: "Yes" },
+  no: { icon: "no-entry", emoji: "❌", label: "No" },
+  ok: { icon: "approval", emoji: "👌", label: "OK" },
+  thumbsup: { icon: "thumbs-up", emoji: "👍", label: "Thumbs up" },
+  "thumb-up": { icon: "thumbs-up", emoji: "👍", label: "Thumb up" },
+  thumbs: { icon: "thumbs-up", emoji: "👍", label: "Thumbs up" },
+  "+1": { icon: "thumbs-up", emoji: "👍", label: "Thumbs up" },
+  "-1": { icon: "thumbs-down", emoji: "👎", label: "Thumbs down" },
+  thanks: { icon: "volunteering", emoji: "🙏", label: "Thanks" },
+  eyes: { icon: "eye", emoji: "👀", label: "Eyes" },
+  thinking: { icon: "brain", emoji: "🤔", label: "Thinking" },
+  wow: { icon: "edvard-munch", emoji: "😮", label: "Wow" },
+  oops: { icon: "monster-face", emoji: "😬", label: "Oops" },
+  cool: { icon: "sun-glasses", emoji: "😎", label: "Cool" },
+  lucky: { icon: "clover", emoji: "🍀", label: "Lucky" },
+  gg: { icon: "handshake", emoji: "🤝", label: "GG" },
+  sparkles: { icon: "sparkling", emoji: "✨", label: "Sparkles" },
+  moneybag: { icon: "dollar-bag", emoji: "💰", label: "Money bag" },
+  "money-bag": { icon: "dollar-bag", emoji: "💰", label: "Money bag" },
+});
+const CHAT_EMOJI_SHORTCUTS = {
+  ...Object.fromEntries(Object.entries(CHAT_REACTION_ICONS).map(([key, entry]) => [key, entry.emoji])),
+};
+const CHAT_EMOJI_ICON_ENTRIES = Object.values(CHAT_REACTION_ICONS)
+  .filter((entry, index, entries) => entries.findIndex((candidate) => candidate.emoji === entry.emoji) === index)
+  .sort((a, b) => b.emoji.length - a.emoji.length);
+const CHAT_PRIMARY_SHORTCUT_SET = new Set(CHAT_EMOJI_PANEL_SHORTCUTS);
+const CHAT_SHORTCUT_SUGGESTION_KEYS = [
+  ...CHAT_EMOJI_PANEL_SHORTCUTS,
+  ...Object.keys(CHAT_REACTION_ICONS).filter((key) => !CHAT_PRIMARY_SHORTCUT_SET.has(key)).sort((a, b) => a.localeCompare(b)),
+];
+const CHAT_SHORTCUT_SUGGESTION_LIMIT = 8;
 const CHAT_CRINGY_QUOTES = [
   "You miss 100% of the shots you don't take.",
   "What if I fall? Oh my darling, but what if you fly?",
@@ -639,7 +904,11 @@ async function sendChat(message, options = {}) {
       }),
     });
     state.game = payload.game;
-    if (clearInput && els.chatInput) els.chatInput.value = "";
+    if (clearInput && els.chatInput) {
+      els.chatInput.value = "";
+      closeChatShortcutSuggestions();
+      updateChatComposePreview();
+    }
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -733,7 +1002,7 @@ async function leaveRoom() {
     return;
   }
   if (state.game.activeRoll && !(await recoverActiveRollLock())) return;
-  if (state.game.status !== "lobby" && !window.confirm("Forlate spillet? Du kan komme tilbake fra samme nettleser.")) return;
+  if (state.game.status !== "lobby" && !(await confirmLeaveRoom())) return;
 
   state.pending = true;
   render();
@@ -752,6 +1021,122 @@ async function leaveRoom() {
   } finally {
     state.pending = false;
     render();
+  }
+}
+
+function confirmLeaveRoom() {
+  return showConfirmDialog({
+    eyebrow: "Spillrom",
+    title: "Forlate spillet?",
+    message: "Du kan komme tilbake fra samme nettleser.",
+    icon: "door",
+    cancelLabel: "Bli her",
+    confirmLabel: "Gå ut",
+    confirmIcon: "door",
+  });
+}
+
+function showConfirmDialog(options) {
+  if (!els.confirmDialog || !els.confirmDialogEyebrow || !els.confirmDialogTitle || !els.confirmDialogMessage || !els.confirmDialogIcon || !els.confirmCancel || !els.confirmConfirm) {
+    showToast(options.message || options.title || "Bekreftelse mangler.");
+    return Promise.resolve(false);
+  }
+
+  if (state.confirmPrompt.resolve) {
+    closeConfirmDialog(false, { restoreFocus: false });
+  }
+
+  const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  state.confirmPrompt.previouslyFocused = previouslyFocused;
+  els.confirmDialogEyebrow.textContent = options.eyebrow || "";
+  els.confirmDialogTitle.textContent = options.title || "";
+  els.confirmDialogMessage.textContent = options.message || "";
+  els.confirmDialogIcon.innerHTML = renderScribbyIcon(options.icon || "info", options.title || "Info", "scribby-icon confirm-dialog-icon");
+  els.confirmCancel.innerHTML = renderIconButtonContent(options.cancelIcon || "undo", options.cancelLabel || "Avbryt");
+  els.confirmConfirm.innerHTML = renderIconButtonContent(options.confirmIcon || "checkmark", options.confirmLabel || "OK");
+  els.confirmDialog.removeAttribute("inert");
+  els.confirmDialog.inert = false;
+  els.confirmDialog.classList.add("is-visible");
+  els.confirmDialog.setAttribute("aria-hidden", "false");
+
+  return new Promise((resolve) => {
+    state.confirmPrompt.resolve = resolve;
+    window.requestAnimationFrame(() => {
+      els.confirmCancel?.focus({ preventScroll: true });
+    });
+  });
+}
+
+function closeConfirmDialog(result, { restoreFocus = true } = {}) {
+  if (!state.confirmPrompt.resolve) return;
+  const resolve = state.confirmPrompt.resolve;
+  const previouslyFocused = state.confirmPrompt.previouslyFocused;
+  state.confirmPrompt.resolve = null;
+  state.confirmPrompt.previouslyFocused = null;
+  els.confirmDialog.classList.remove("is-visible");
+  els.confirmDialog.setAttribute("aria-hidden", "true");
+  els.confirmDialog.inert = true;
+  els.confirmDialog.setAttribute("inert", "");
+  resolve(Boolean(result));
+
+  if (restoreFocus && previouslyFocused?.isConnected) {
+    window.requestAnimationFrame(() => {
+      previouslyFocused.focus({ preventScroll: true });
+    });
+  }
+}
+
+function isConfirmDialogOpen() {
+  return Boolean(els.confirmDialog?.classList.contains("is-visible"));
+}
+
+function confirmDialogFocusableControls() {
+  if (!els.confirmDialog) return [];
+  return Array.from(els.confirmDialog.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"))
+    .filter((control) => control instanceof HTMLElement && !control.matches(":disabled, [aria-disabled='true']"));
+}
+
+function handleConfirmDialogClick(event) {
+  if (!(event.target instanceof Element)) return;
+  const actionButton = event.target.closest("[data-confirm-action]");
+  if (actionButton) {
+    closeConfirmDialog(actionButton.dataset.confirmAction === "confirm");
+    return;
+  }
+
+  if (event.target === els.confirmDialog) {
+    closeConfirmDialog(false);
+  }
+}
+
+function handleConfirmDialogKeydown(event) {
+  if (!isConfirmDialogOpen()) return;
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeConfirmDialog(false);
+    return;
+  }
+
+  if (event.key !== "Tab") return;
+  const controls = confirmDialogFocusableControls();
+  if (!controls.length) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
+  const firstControl = controls[0];
+  const lastControl = controls[controls.length - 1];
+  if (event.shiftKey && document.activeElement === firstControl) {
+    event.preventDefault();
+    event.stopPropagation();
+    lastControl.focus({ preventScroll: true });
+  } else if (!event.shiftKey && document.activeElement === lastControl) {
+    event.preventDefault();
+    event.stopPropagation();
+    firstControl.focus({ preventScroll: true });
   }
 }
 
@@ -916,7 +1301,7 @@ function setDice3dVisible(visible) {
 }
 
 function shouldUseDice3dVisual() {
-  return Boolean(state.isRolling && state.dice3d.visible && canUseDice3d());
+  return Boolean(state.isRolling && state.dice3d.visible && state.dice3d.ready && state.dice3d.instance && !state.dice3d.failed);
 }
 
 function shouldShow2dRollAnimation() {
@@ -946,11 +1331,20 @@ async function synchronizeDice3dSize() {
   // only adds another listener, so dispatch once after the responsive layout settles.
   await nextAnimationFrame();
   if (!state.dice3d.ready || !state.dice3d.visible || !dice3dCanvasHasSize()) return;
-  window.dispatchEvent(new Event("resize"));
-  await nextAnimationFrame();
-  await nextAnimationFrame();
+  const sizeKey = dice3dStageSizeKey();
+  if (sizeKey && sizeKey !== state.dice3d.sizeKey) {
+    window.dispatchEvent(new Event("resize"));
+    await nextAnimationFrame();
+    await nextAnimationFrame();
+    state.dice3d.sizeKey = dice3dStageSizeKey() || sizeKey;
+  }
   constrainDice3dWorld();
   keepSettledDice3dInView();
+}
+
+function dice3dStageSizeKey() {
+  if (!els.dice3dStage) return "";
+  return `${els.dice3dStage.clientWidth}x${els.dice3dStage.clientHeight}`;
 }
 
 function dice3dCanvasHasSize() {
@@ -1286,6 +1680,7 @@ function startRollAnimation(animationGame = state.game, { context = "local" } = 
   }
   state.rollTimer = window.setInterval(() => {
     if (!isCurrentRollAnimation(animationId)) return;
+    if (shouldUseDice3dVisual()) return;
     state.animatedDice = state.animatedDice.map((value, index) => (held[index] ? value : randomDie()));
     renderDice();
   }, 62);
@@ -1572,7 +1967,76 @@ function renderSoundToggle() {
   els.soundToggle.setAttribute("aria-pressed", String(state.soundEnabled));
   els.soundToggle.setAttribute("aria-label", label);
   els.soundToggle.setAttribute("title", label);
-  els.soundToggle.innerHTML = `<span aria-hidden="true">${state.soundEnabled ? "&#128266;" : "&#128263;"}</span>`;
+  els.soundToggle.innerHTML = renderScribbyIcon(state.soundEnabled ? "high-volume" : "no-audio", label, "scribby-icon button-icon");
+}
+
+function cleanScribbySlug(slug) {
+  const cleanSlug = String(slug || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+  return SCRIBBY_ICON_NAMES[cleanSlug] ? cleanSlug : "";
+}
+
+function scribbyIconUrl(slug) {
+  const source = SCRIBBY_ICON_SOURCES[slug];
+  if (source?.id) {
+    return `https://img.icons8.com/?size=100&id=${encodeURIComponent(source.id)}&format=png`;
+  }
+  return `${SCRIBBY_ICON_BASE}${encodeURIComponent(source?.slug || slug)}.png`;
+}
+
+function renderScribbyIcon(slug, label = "", className = "scribby-icon") {
+  const safeSlug = cleanScribbySlug(slug);
+  if (!safeSlug) return "";
+  const title = label || SCRIBBY_ICON_NAMES[safeSlug] || safeSlug;
+  return `<img class="${escapeHtml(className)}" src="${scribbyIconUrl(safeSlug)}" alt="" aria-hidden="true" loading="lazy" decoding="async" title="${escapeHtml(title)}" onerror="this.remove()">`;
+}
+
+function renderIconButtonContent(icon, label) {
+  return `${renderScribbyIcon(icon, label, "scribby-icon button-icon")}<span>${escapeHtml(label)}</span>`;
+}
+
+function playerAvatarSlug(player) {
+  const cleanSlug = cleanScribbySlug(player?.avatarIcon);
+  return cleanSlug || fallbackAvatarSlug(player);
+}
+
+function fallbackAvatarSlug(player) {
+  const key = String(player?.seatId || player?.name || "player");
+  let hash = 0;
+  for (const char of key) {
+    hash = ((hash * 31) + char.codePointAt(0)) >>> 0;
+  }
+  return SCRIBBY_AVATAR_ICONS[hash % SCRIBBY_AVATAR_ICONS.length][0];
+}
+
+function renderPlayerAvatar(player, className = "avatar") {
+  const slug = playerAvatarSlug(player);
+  const label = SCRIBBY_ICON_NAMES[slug] || "Avatar";
+  const name = player?.name || "Spiller";
+  return `
+    <span class="${escapeHtml(className)}" title="${escapeHtml(`${name} · ${label}`)}">
+      ${renderScribbyIcon(slug, label, "avatar-icon")}
+      <span class="avatar-fallback">${escapeHtml(initials(name))}</span>
+    </span>
+  `;
+}
+
+function renderChatContent(message) {
+  const text = expandChatEmojiShortcuts(message);
+  let html = "";
+  for (let index = 0; index < text.length;) {
+    const match = CHAT_EMOJI_ICON_ENTRIES.find((entry) => text.startsWith(entry.emoji, index));
+    if (match) {
+      const label = SCRIBBY_ICON_NAMES[match.icon] || "Reaction";
+      html += `${renderScribbyIcon(match.icon, label, "scribby-icon chat-inline-icon")}<span class="sr-only">${escapeHtml(match.emoji)}</span>`;
+      index += match.emoji.length;
+      continue;
+    }
+
+    const char = Array.from(text.slice(index))[0] || "";
+    html += escapeHtml(char);
+    index += char.length || 1;
+  }
+  return html;
 }
 
 function render() {
@@ -1584,6 +2048,9 @@ function render() {
   els.gameView.classList.toggle("is-hidden", !hasGame);
   els.topbarRoom?.classList.toggle("is-hidden", !hasGame);
   els.gameView.classList.toggle("is-my-turn", myTurn);
+  els.gameView.classList.toggle("is-playing", hasGame && state.game.status === "playing");
+  els.gameView.classList.toggle("is-lobby", hasGame && state.game.status === "lobby");
+  els.gameView.classList.toggle("is-finished", hasGame && state.game.status === "finished");
   els.createName.value ||= loadName();
   els.joinName.value ||= loadName();
 
@@ -1615,7 +2082,7 @@ function renderRoom() {
   renderHostControls();
   els.startGame.classList.toggle("is-hidden", game.status !== "lobby");
   els.startGame.classList.toggle("maxi-button", game.mode === "maxi");
-  els.startGame.textContent = game.mode === "maxi" ? "Start Maxi Yatzy" : "Start spill";
+  els.startGame.innerHTML = renderIconButtonContent("play", game.mode === "maxi" ? "Start Maxi Yatzy" : "Start spill");
   els.startGame.disabled = state.pending || (game.activePlayerCount ?? game.players.length) === 0;
 }
 
@@ -1657,36 +2124,17 @@ function renderHostControls() {
   const busy = state.pending || state.isRolling || Boolean(game.activeRoll);
 
   if (amHost() && game.status !== "finished") {
-    const targets = game.players.filter((player) => player.seatId !== state.seatId && isActivePlayer(player));
-    if (targets.length) {
-      controls.push(`
-        <select class="host-select" data-host-target ${busy ? "disabled" : ""} aria-label="Velg spiller">
-          ${targets.map((player) => `<option value="${escapeHtml(player.seatId)}">${escapeHtml(player.name)}</option>`).join("")}
-        </select>
-        <button class="secondary small" type="button" data-host-transfer ${busy ? "disabled" : ""}>Gi host</button>
-        <button class="secondary small" type="button" data-host-remove ${busy ? "disabled" : ""}>${game.status === "lobby" ? "Fjern" : "Ta ut"}</button>
-      `);
-    }
-
     const player = currentPlayer();
     if (game.status === "playing" && player && player.seatId !== state.seatId) {
-      controls.push(`<button class="secondary small" type="button" data-host-skip ${busy ? "disabled" : ""}>Hopp over</button>`);
+      controls.push(`<button class="secondary small" type="button" data-host-skip ${busy ? "disabled" : ""}>${renderIconButtonContent("forward", "Hopp over")}</button>`);
     }
   }
 
   els.hostControls.innerHTML = controls.join("");
   els.hostControls.classList.toggle("is-hidden", controls.length === 0);
+  els.gameView?.classList.toggle("has-host-controls", controls.length > 0);
   if (!controls.length) return;
 
-  const selectedSeatId = () => els.hostControls.querySelector("[data-host-target]")?.value;
-  els.hostControls.querySelector("[data-host-transfer]")?.addEventListener("click", () => {
-    const seatId = selectedSeatId();
-    if (seatId) void action("transfer", { seatId });
-  });
-  els.hostControls.querySelector("[data-host-remove]")?.addEventListener("click", () => {
-    const seatId = selectedSeatId();
-    if (seatId) void action("remove", { seatId });
-  });
   els.hostControls.querySelector("[data-host-skip]")?.addEventListener("click", () => {
     void action("skip");
   });
@@ -1765,6 +2213,10 @@ function statusText(status) {
 
 function renderPlayers() {
   const game = state.game;
+  if (!game.players.some((player) => player.seatId === state.playerMenuSeatId && canManagePlayer(player))) {
+    state.playerMenuSeatId = null;
+  }
+
   els.playersList.innerHTML = game.players
     .map((player) => {
       const mine = player.seatId === state.seatId ? "deg" : "";
@@ -1777,9 +2229,18 @@ function renderPlayers() {
         isActivePlayer(player) ? "" : "is-away",
       ].filter(Boolean).join(" ");
       const title = `${player.name}${player.seatId === game.currentSeatId ? " · spiller nå" : ""}${away ? " · har gått ut" : ""}`;
+      const manageable = canManagePlayer(player);
+      const menuOpen = manageable && state.playerMenuSeatId === player.seatId;
       return `
         <div class="${classes}" title="${escapeHtml(title)}">
-          <div class="avatar">${escapeHtml(initials(player.name))}</div>
+          <button class="player-avatar-button" type="button" data-player-menu="${escapeHtml(player.seatId)}" ${manageable ? `aria-haspopup="menu" aria-expanded="${menuOpen}"` : "disabled"} aria-label="${escapeHtml(manageable ? `${player.name}. Flere valg` : title)}">
+            ${renderPlayerAvatar(player)}
+          </button>
+          ${menuOpen ? `
+            <div class="player-action-menu" role="menu">
+              <button class="player-kick-button" type="button" role="menuitem" data-player-remove="${escapeHtml(player.seatId)}">Kast ut</button>
+            </div>
+          ` : ""}
           <div class="player-copy">
             <div class="player-name">${escapeHtml(player.name)}${meta ? `<span class="player-meta">${escapeHtml(meta)}</span>` : ""}</div>
           </div>
@@ -1787,6 +2248,53 @@ function renderPlayers() {
       `;
     })
     .join("");
+}
+
+function canManagePlayer(player) {
+  return Boolean(
+    state.game
+    && amHost()
+    && player
+    && player.seatId !== state.seatId
+    && isActivePlayer(player)
+    && state.game.status !== "finished"
+    && !state.pending
+    && !state.isRolling
+    && !state.game.activeRoll
+  );
+}
+
+function closePlayerMenu() {
+  if (!state.playerMenuSeatId) return;
+  state.playerMenuSeatId = null;
+  renderPlayers();
+}
+
+function handlePlayerMenuOutsidePointerDown(event) {
+  if (!state.playerMenuSeatId || !(event.target instanceof Element)) return;
+  if (event.target.closest("#playersList")) return;
+  closePlayerMenu();
+}
+
+function handlePlayerMenuClick(event) {
+  if (!(event.target instanceof Element)) return;
+
+  const removeButton = event.target.closest("[data-player-remove]");
+  if (removeButton) {
+    const seatId = removeButton.dataset.playerRemove;
+    state.playerMenuSeatId = null;
+    renderPlayers();
+    if (seatId) void action("remove", { seatId });
+    return;
+  }
+
+  const menuButton = event.target.closest("[data-player-menu]");
+  if (!menuButton || menuButton.disabled) return;
+  const seatId = menuButton.dataset.playerMenu;
+  const player = state.game?.players.find((entry) => entry.seatId === seatId);
+  if (!canManagePlayer(player)) return;
+  state.playerMenuSeatId = state.playerMenuSeatId === seatId ? null : seatId;
+  renderPlayers();
 }
 
 function renderTurn() {
@@ -1808,6 +2316,15 @@ function renderTurn() {
     els.turnEyebrow.textContent = "Venter";
     els.turnTitle.textContent = player ? `${player.name} sin tur` : "Venter p\u00e5 spillere";
   }
+}
+
+function rollStatusText(game = state.game) {
+  if (!game) return "";
+  if (game.status === "lobby") return "Venter på start";
+  if (game.status === "finished") return "Ferdig";
+  if (isMyTurn()) return "Din tur";
+  const player = currentPlayer();
+  return player ? `${player.name} sin tur` : "Venter på spillere";
 }
 
 function renderDice() {
@@ -1841,7 +2358,8 @@ function renderDice() {
   }
 
   els.rollDice.disabled = !canRollDice();
-  els.rollDice.textContent = rollButtonText(game);
+  els.rollDice.innerHTML = renderIconButtonContent("dice", rollButtonText(game));
+  if (els.rollStatus) els.rollStatus.textContent = rollStatusText(game);
   renderRollMeta(game);
 }
 
@@ -1850,14 +2368,13 @@ function hasSplitDiceLayout() {
 }
 
 function renderSplitDice(diceEntries, canHold, count) {
-  const activeCount = diceEntries.filter((entry) => !entry.held).length;
-  const heldCount = diceEntries.length - activeCount;
+  const heldCount = diceEntries.filter((entry) => entry.held).length;
   els.diceTable.classList.toggle("is-rolling", state.isRolling);
   els.diceTable.classList.toggle("is-3d-roll-visual", shouldUseDice3dVisual());
   els.diceTable.classList.toggle("has-3d-roll", state.dice3d.visible);
   els.activeDiceRow.style.setProperty("--dice-count", count);
   els.heldDiceRow.style.setProperty("--dice-count", count);
-  els.activeDiceLabel.textContent = `${activeCount}/${count}`;
+  els.activeDiceLabel.textContent = "";
   els.heldDiceLabel.textContent = `${heldCount}/${count}`;
   els.activeDiceRow.innerHTML = renderDiceSlots(diceEntries, canHold, "active", (entry) => !entry.held);
   els.heldDiceRow.innerHTML = renderDiceSlots(diceEntries, canHold, "held", (entry) => entry.held);
@@ -1934,6 +2451,7 @@ function isKeyboardControlTarget(target) {
 function handleRollShortcut(event) {
   const isSpace = event.code === "Space" || event.key === " " || event.key === "Spacebar";
   if (!isSpace || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (isConfirmDialogOpen()) return;
   if (isKeyboardControlTarget(event.target)) return;
   if (!canRollDice()) return;
 
@@ -1943,6 +2461,7 @@ function handleRollShortcut(event) {
 
 function handleDieShortcut(event) {
   if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (isConfirmDialogOpen()) return;
   if (isKeyboardControlTarget(event.target)) return;
   if (!state.game || !isMyTurn() || state.game.rollsUsed === 0 || state.pending || state.isRolling) return;
   const numericIndex = Number(event.key) - 1;
@@ -1994,6 +2513,8 @@ function renderSyncRecovery() {
 
 function rollButtonText(game) {
   if (state.isRolling) return "Ruller";
+  if (game.status !== "playing") return "Kast";
+  if (!isMyTurn()) return "Venter";
   if (game.activeRoll) return isActiveRollRecoverable(game.activeRoll) ? "Hent kast" : "Venter på kast";
   if (game.rollsUsed === 0) return "Kast";
   return game.rollsLeft > 0 ? "Kast igjen" : "Ingen kast";
@@ -2004,7 +2525,7 @@ function savedRollText(count) {
 }
 
 function savedRollInlineHtml(count) {
-  return `<span class="roll-meta-chip-icon" aria-hidden="true"></span><span>${escapeHtml(savedRollText(count))}</span>`;
+  return `${renderScribbyIcon("star", "Sjetong", "scribby-icon roll-meta-chip-icon")}<span>${escapeHtml(savedRollText(count))}</span>`;
 }
 
 function savedRollMetaHtml(game) {
@@ -2102,7 +2623,7 @@ function renderScoreLastMove(game) {
   const undoLabel = undo ? `Angre ${undo.points} p\u00e5 ${undo.categoryLabel} for ${undo.playerName}` : "Angre siste score";
   els.scoreLastMove.innerHTML = `
     <span class="score-last-move-text">${escapeHtml(text)}</span>
-    ${showUndo ? `<button class="score-last-move-undo" type="button" data-undo-score${canUndoLastScore() ? "" : " disabled"} aria-label="${escapeHtml(undoLabel)}">Angre</button>` : ""}
+    ${showUndo ? `<button class="score-last-move-undo" type="button" data-undo-score${canUndoLastScore() ? "" : " disabled"} aria-label="${escapeHtml(undoLabel)}">${renderIconButtonContent("undo", "Angre")}</button>` : ""}
   `;
   els.scoreLastMove.classList.toggle("is-empty", !text && !showUndo);
 }
@@ -2116,7 +2637,7 @@ function scorePlayerHeader(player) {
   const title = `${player.name}${isActivePlayer(player) ? "" : " · ute"}`;
   return `
     <th scope="col" class="${classes}" title="${escapeHtml(title)}">
-      <span class="score-player-initial">${escapeHtml(firstInitial(player.name))}</span>
+      ${renderPlayerAvatar(player, "score-player-avatar")}
     </th>
   `;
 }
@@ -2189,7 +2710,7 @@ function renderScoreInfo(info) {
   const safeInfo = escapeHtml(info);
   return `
     <span class="score-info">
-      <button class="score-info-button" type="button" aria-label="${safeInfo}">?</button>
+      <button class="score-info-button" type="button" aria-label="${safeInfo}">${renderScribbyIcon("info", "Info", "scribby-icon score-info-icon")}</button>
       <span class="score-info-popover" role="tooltip">${safeInfo}</span>
     </span>
   `;
@@ -2289,7 +2810,7 @@ function renderLogEntry(entry) {
     const detail = [rolled ? `<span class="log-dice">Kastet ${rolled}</span>` : "", kept ? `beholdt ${kept}` : "", entry.usedSavedRoll ? "brukte sjetong" : ""].filter(Boolean).join(" · ");
     return `
       <li>
-        <span class="log-heading">🎲 ${escapeHtml(entry.playerName || "Spiller")} · kast ${Number(entry.rollNumber) || 1}</span>
+        <span class="log-heading">${renderScribbyIcon("dice", "Kast", "scribby-icon log-icon")} ${escapeHtml(entry.playerName || "Spiller")} · kast ${Number(entry.rollNumber) || 1}</span>
         <span class="log-detail">${detail}</span>
       </li>
     `;
@@ -2299,7 +2820,7 @@ function renderLogEntry(entry) {
     const kept = formatDiceValues(entry.heldDice);
     return `
       <li>
-        <span class="log-heading">${entry.held ? "📌" : "↩"} ${escapeHtml(entry.message)}</span>
+        <span class="log-heading">${renderScribbyIcon(entry.held ? "pin" : "undo", entry.held ? "Spart" : "Slapp", "scribby-icon log-icon")} ${escapeHtml(entry.message)}</span>
         ${kept ? `<span class="log-detail">Spart nå: <span class="log-dice">${kept}</span></span>` : ""}
       </li>
     `;
@@ -2307,15 +2828,28 @@ function renderLogEntry(entry) {
 
   if (entry.type === "score") {
     const dice = formatDiceValues(entry.dice);
+    const isYatzyScore = YATZY_CATEGORY_IDS.has(entry.categoryId);
     return `
       <li>
-        <span class="log-heading">✎ ${escapeHtml(entry.playerName || "Spiller")} skrev ${Number(entry.points) || 0} på ${escapeHtml(entry.category || "")}</span>
+        <span class="log-heading">${renderScribbyIcon(isYatzyScore ? "star" : "save", isYatzyScore ? "Yatzy" : "Score", "scribby-icon log-icon")} ${escapeHtml(entry.playerName || "Spiller")} skrev ${Number(entry.points) || 0} på ${escapeHtml(entry.category || "")}</span>
         ${dice ? `<span class="log-detail">Etter ${Number(entry.rollsUsed) || 1} kast · <span class="log-dice">${dice}</span></span>` : ""}
       </li>
     `;
   }
 
-  return `<li><span class="log-heading">${escapeHtml(entry.message)}</span></li>`;
+  const genericIcon = logIconForEntry(entry);
+  return `<li><span class="log-heading">${renderScribbyIcon(genericIcon.icon, genericIcon.label, "scribby-icon log-icon")} ${escapeHtml(entry.message)}</span></li>`;
+}
+
+function logIconForEntry(entry) {
+  const message = String(entry?.message || "").toLowerCase();
+  if (message.includes("ble med") || message.includes("kom tilbake") || message.includes("opprettet rommet")) {
+    return { icon: "party-balloon", label: "Ble med" };
+  }
+  if (message.includes("forlot")) {
+    return { icon: "door", label: "Forlot" };
+  }
+  return { icon: "comments", label: "Info" };
 }
 
 function formatDiceValues(values) {
@@ -2331,10 +2865,13 @@ function renderChat() {
 
   const disabled = !state.game || !state.playerToken || state.chatPending;
   if (disabled) state.chatEmojiPanelOpen = false;
+  if (disabled) closeChatShortcutSuggestions();
   if (els.chatInput) els.chatInput.disabled = disabled;
   if (els.chatEmojiToggle) els.chatEmojiToggle.disabled = disabled;
   if (els.sendChat) els.sendChat.disabled = disabled;
   syncChatEmojiPanel();
+  renderChatShortcutSuggestions();
+  updateChatComposePreview();
 }
 
 function focusChatInput() {
@@ -2348,11 +2885,14 @@ function focusChatInput() {
 
 function renderChatEmojiPanel() {
   if (!els.chatEmojiPanel) return;
-  const quoteButton = '<button class="chat-quote-button" type="button" data-chat-quote>Random cringe quote</button>';
+  const quoteButton = `<button class="chat-quote-button" type="button" data-chat-quote>${renderIconButtonContent("get-quote", "Random cheesy quote")}</button>`;
   const emojiButtons = CHAT_EMOJI_PANEL_SHORTCUTS.map((shortcut) => {
     const emoji = CHAT_EMOJI_SHORTCUTS[shortcut];
-    const label = `:${shortcut}:`;
-    return `<button class="chat-emoji-option" type="button" data-chat-emoji="${escapeHtml(emoji)}" data-chat-shortcut="${escapeHtml(label)}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${escapeHtml(emoji)}<span class="chat-emoji-tooltip" aria-hidden="true">${escapeHtml(label)}</span></button>`;
+    const reaction = CHAT_REACTION_ICONS[shortcut] || { icon: "comments" };
+    const shortcutLabel = `:${shortcut}:`;
+    const label = reaction.label || SCRIBBY_ICON_NAMES[reaction.icon] || shortcutLabel;
+    const title = `${label} (${shortcutLabel})`;
+    return `<button class="chat-emoji-option" type="button" data-chat-emoji="${escapeHtml(emoji)}" data-chat-shortcut="${escapeHtml(shortcutLabel)}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${renderScribbyIcon(reaction.icon, label, "scribby-icon chat-reaction-icon")}<span class="chat-emoji-tooltip" aria-hidden="true">${escapeHtml(shortcutLabel)}</span></button>`;
   }).join("");
   els.chatEmojiPanel.innerHTML = `${quoteButton}${emojiButtons}`;
 }
@@ -2368,11 +2908,13 @@ function syncChatEmojiPanel() {
 
 function toggleChatEmojiPanel(forceOpen = !state.chatEmojiPanelOpen) {
   state.chatEmojiPanelOpen = Boolean(forceOpen && !els.chatEmojiToggle?.disabled);
+  if (state.chatEmojiPanelOpen) closeChatShortcutSuggestions();
   syncChatEmojiPanel();
 }
 
-function insertChatText(text) {
+function insertChatText(text, options = {}) {
   if (!els.chatInput || els.chatInput.disabled) return;
+  const { closeSuggestions = true } = options;
   const value = els.chatInput.value || "";
   const start = Number.isInteger(els.chatInput.selectionStart) ? els.chatInput.selectionStart : value.length;
   const end = Number.isInteger(els.chatInput.selectionEnd) ? els.chatInput.selectionEnd : start;
@@ -2380,6 +2922,220 @@ function insertChatText(text) {
   els.chatInput.focus({ preventScroll: true });
   const nextCursor = start + text.length;
   els.chatInput.setSelectionRange(nextCursor, nextCursor);
+  if (closeSuggestions) closeChatShortcutSuggestions();
+  else updateChatShortcutSuggestions();
+  updateChatComposePreview();
+}
+
+function chatMessageHasScribbyPreview(message) {
+  const text = expandChatEmojiShortcuts(message);
+  return CHAT_EMOJI_ICON_ENTRIES.some((entry) => text.includes(entry.emoji));
+}
+
+function updateChatComposePreview() {
+  if (!els.chatComposePreview || !els.chatInput || els.chatInput.disabled || !chatMessageHasScribbyPreview(els.chatInput.value)) {
+    if (els.chatComposePreview) {
+      els.chatComposePreview.classList.add("is-hidden");
+      els.chatComposePreview.innerHTML = "";
+    }
+    return;
+  }
+
+  els.chatComposePreview.innerHTML = renderChatContent(els.chatInput.value);
+  els.chatComposePreview.classList.remove("is-hidden");
+}
+
+function handleChatInputChanged() {
+  updateChatShortcutSuggestions();
+  updateChatComposePreview();
+}
+
+function chatShortcutTokenAtCursor() {
+  if (!els.chatInput) return null;
+  const value = els.chatInput.value || "";
+  const start = Number.isInteger(els.chatInput.selectionStart) ? els.chatInput.selectionStart : value.length;
+  const end = Number.isInteger(els.chatInput.selectionEnd) ? els.chatInput.selectionEnd : start;
+  if (start !== end) return null;
+
+  const beforeCursor = value.slice(0, start);
+  const match = /(^|[^\w&])(:[+\-\w]*)$/.exec(beforeCursor);
+  if (!match) return null;
+  const token = match[2];
+  if (!token || (token.length > 1 && token.endsWith(":"))) return null;
+  return {
+    query: token.slice(1).toLowerCase(),
+    start: start - token.length,
+    end,
+  };
+}
+
+function chatShortcutSuggestionLabel(key) {
+  const reaction = CHAT_REACTION_ICONS[key] || {};
+  return reaction.label || SCRIBBY_ICON_NAMES[reaction.icon] || key;
+}
+
+function matchingChatShortcutSuggestions(query) {
+  const normalized = String(query || "").toLowerCase();
+  return CHAT_SHORTCUT_SUGGESTION_KEYS
+    .map((key, index) => {
+      const reaction = CHAT_REACTION_ICONS[key] || {};
+      const label = chatShortcutSuggestionLabel(key);
+      const haystack = `${key} ${label} ${reaction.icon || ""}`.toLowerCase();
+      let score = 0;
+      if (!normalized || key.startsWith(normalized)) {
+        score = 0;
+      } else if (label.toLowerCase().startsWith(normalized)) {
+        score = 1;
+      } else if (haystack.includes(normalized)) {
+        score = 2;
+      } else {
+        return null;
+      }
+      return { key, reaction, label, score, index };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .slice(0, CHAT_SHORTCUT_SUGGESTION_LIMIT);
+}
+
+function updateChatShortcutSuggestions() {
+  if (!els.chatInput || els.chatInput.disabled) {
+    closeChatShortcutSuggestions();
+    return;
+  }
+
+  const token = chatShortcutTokenAtCursor();
+  if (!token) {
+    closeChatShortcutSuggestions();
+    return;
+  }
+
+  const matches = matchingChatShortcutSuggestions(token.query);
+  if (!matches.length) {
+    closeChatShortcutSuggestions();
+    return;
+  }
+
+  const currentKey = state.chatShortcutSuggestions.matches[state.chatShortcutSuggestions.activeIndex]?.key;
+  const nextActiveIndex = Math.max(0, matches.findIndex((match) => match.key === currentKey));
+  state.chatShortcutSuggestions = {
+    open: true,
+    matches,
+    activeIndex: nextActiveIndex,
+    tokenStart: token.start,
+    tokenEnd: token.end,
+  };
+  state.chatEmojiPanelOpen = false;
+  syncChatEmojiPanel();
+  renderChatShortcutSuggestions();
+}
+
+function closeChatShortcutSuggestions() {
+  if (!state.chatShortcutSuggestions.open && !state.chatShortcutSuggestions.matches.length) return;
+  state.chatShortcutSuggestions = {
+    open: false,
+    matches: [],
+    activeIndex: 0,
+    tokenStart: -1,
+    tokenEnd: -1,
+  };
+  renderChatShortcutSuggestions();
+}
+
+function renderChatShortcutSuggestions() {
+  if (!els.chatShortcutSuggestions) return;
+  const { open, matches, activeIndex } = state.chatShortcutSuggestions;
+  const visible = Boolean(open && matches.length && !els.chatInput?.disabled);
+  els.chatShortcutSuggestions.classList.toggle("is-hidden", !visible);
+  if (els.chatInput) {
+    els.chatInput.setAttribute("aria-expanded", String(visible));
+    if (visible) {
+      els.chatInput.setAttribute("aria-activedescendant", `chatShortcutSuggestion-${activeIndex}`);
+    } else {
+      els.chatInput.removeAttribute("aria-activedescendant");
+    }
+  }
+  if (!visible) {
+    els.chatShortcutSuggestions.innerHTML = "";
+    return;
+  }
+
+  els.chatShortcutSuggestions.innerHTML = matches.map((match, index) => {
+    const shortcut = `:${match.key}:`;
+    const isActive = index === activeIndex;
+    const icon = match.reaction.icon || "comments";
+    return `
+      <button
+        class="chat-shortcut-suggestion ${isActive ? "is-active" : ""}"
+        id="chatShortcutSuggestion-${index}"
+        type="button"
+        role="option"
+        aria-selected="${isActive}"
+        data-chat-shortcut-pick="${escapeHtml(match.key)}"
+      >
+        ${renderScribbyIcon(icon, match.label, "scribby-icon chat-suggestion-icon")}
+        <span class="chat-shortcut-main">${escapeHtml(shortcut)}</span>
+        <span class="chat-shortcut-label">${escapeHtml(match.label)}</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function moveChatShortcutSuggestion(delta) {
+  if (!state.chatShortcutSuggestions.open || !state.chatShortcutSuggestions.matches.length) return;
+  const count = state.chatShortcutSuggestions.matches.length;
+  state.chatShortcutSuggestions.activeIndex = (state.chatShortcutSuggestions.activeIndex + delta + count) % count;
+  renderChatShortcutSuggestions();
+}
+
+function completeChatShortcut(index = state.chatShortcutSuggestions.activeIndex) {
+  if (!els.chatInput || !state.chatShortcutSuggestions.open) return false;
+  const match = state.chatShortcutSuggestions.matches[index];
+  if (!match) return false;
+  const value = els.chatInput.value || "";
+  const start = state.chatShortcutSuggestions.tokenStart;
+  const end = state.chatShortcutSuggestions.tokenEnd;
+  if (start < 0 || end < start) return false;
+
+  const nextChar = value.slice(end, end + 1);
+  const replacement = `:${match.key}:` + (nextChar && /\s/.test(nextChar) ? "" : " ");
+  els.chatInput.value = `${value.slice(0, start)}${replacement}${value.slice(end)}`;
+  const cursor = start + replacement.length;
+  els.chatInput.focus({ preventScroll: true });
+  els.chatInput.setSelectionRange(cursor, cursor);
+  closeChatShortcutSuggestions();
+  updateChatComposePreview();
+  return true;
+}
+
+function handleChatShortcutKeydown(event) {
+  if (!state.chatShortcutSuggestions.open) return;
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    event.stopPropagation();
+    moveChatShortcutSuggestion(1);
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    event.stopPropagation();
+    moveChatShortcutSuggestion(-1);
+  } else if (event.key === "Enter" || event.key === "Tab") {
+    event.preventDefault();
+    event.stopPropagation();
+    completeChatShortcut();
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeChatShortcutSuggestions();
+  }
+}
+
+function handleChatShortcutSuggestionClick(event) {
+  if (!(event.target instanceof Element)) return;
+  const button = event.target.closest("[data-chat-shortcut-pick]");
+  if (!button) return;
+  const key = button.dataset.chatShortcutPick;
+  const index = state.chatShortcutSuggestions.matches.findIndex((match) => match.key === key);
+  if (index >= 0) completeChatShortcut(index);
 }
 
 function randomChatQuote() {
@@ -2387,16 +3143,20 @@ function randomChatQuote() {
 }
 
 function handleChatEmojiOutsidePointerDown(event) {
-  if (!state.chatEmojiPanelOpen || !(event.target instanceof Element)) return;
+  if ((!state.chatEmojiPanelOpen && !state.chatShortcutSuggestions.open) || !(event.target instanceof Element)) return;
   if (event.target.closest(".chat-form")) return;
   toggleChatEmojiPanel(false);
+  closeChatShortcutSuggestions();
 }
 
 function handleChatEmojiEscape(event) {
-  if (!state.chatEmojiPanelOpen || event.key !== "Escape") return;
+  if ((!state.chatEmojiPanelOpen && !state.chatShortcutSuggestions.open) || event.key !== "Escape") return;
+  const shouldFocusInput = state.chatShortcutSuggestions.open && !state.chatEmojiPanelOpen;
   event.preventDefault();
   toggleChatEmojiPanel(false);
-  els.chatEmojiToggle?.focus({ preventScroll: true });
+  closeChatShortcutSuggestions();
+  if (shouldFocusInput) els.chatInput?.focus({ preventScroll: true });
+  else els.chatEmojiToggle?.focus({ preventScroll: true });
 }
 
 function playGameTransitionSounds(previous, next) {
@@ -2471,6 +3231,10 @@ function showYatzyCelebration(playerName, points, label) {
   els.celebrationLayer.innerHTML = `
     ${renderConfetti()}
     <div class="celebration-banner">
+      <span class="celebration-icon-row" aria-hidden="true">
+        ${renderScribbyIcon("star", "Yatzy", "scribby-icon celebration-icon")}
+        ${renderScribbyIcon("firework-explosion", "Feiring", "scribby-icon celebration-icon")}
+      </span>
       <strong>${escapeHtml(label)}!</strong>
       <span>${escapeHtml(playerName)} fikk ${points}</span>
     </div>
@@ -2528,17 +3292,21 @@ function renderGameOverOverlay() {
   els.celebrationLayer.innerHTML = `
     <div class="game-over-dialog" role="dialog" aria-modal="true" aria-labelledby="gameOverTitle">
       <p class="eyebrow">Ferdig ark</p>
-      <h2 id="gameOverTitle">${escapeHtml(winnerTitle)}</h2>
+      <h2 id="gameOverTitle">${renderScribbyIcon("medal-first-place", "Vinner", "scribby-icon game-over-icon")}<span>${escapeHtml(winnerTitle)}</span></h2>
       <div class="final-scoreboard">
         ${sortedPlayers
           .map(
-            (player, index) => `
-          <div class="final-score-row ${winners.some((winner) => winner.seatId === player.seatId) ? "is-winner" : ""}">
-            <span>${index + 1}</span>
+            (player, index) => {
+              const isWinner = winners.some((winner) => winner.seatId === player.seatId);
+              return `
+          <div class="final-score-row ${isWinner ? "is-winner" : ""}">
+            <span class="final-rank">${isWinner ? renderScribbyIcon("medal-first-place", "Vinner", "scribby-icon final-rank-icon") : index + 1}</span>
+            ${renderPlayerAvatar(player, "final-player-avatar")}
             <strong>${escapeHtml(player.name)}</strong>
             <b>${player.totals.total}</b>
           </div>
-        `,
+        `;
+            },
           )
           .join("")}
       </div>
@@ -2550,19 +3318,13 @@ function renderGameOverOverlay() {
 }
 
 function renderChatMessage(entry) {
-  if (entry.kind === "quote") {
-    return `
-      <div class="chat-message is-quote">
-        <span>${escapeHtml(expandChatEmojiShortcuts(entry.message))}</span>
-      </div>
-    `;
-  }
-
   const mine = entry.seatId === state.seatId ? "is-mine" : "";
+  const player = state.game?.players.find((entryPlayer) => entryPlayer.seatId === entry.seatId) || { seatId: entry.seatId, name: entry.name };
+  const authorName = entry.name || player.name || "Spiller";
   return `
     <div class="chat-message ${mine}">
-      <strong>${escapeHtml(entry.name)}</strong>
-      <span>${escapeHtml(expandChatEmojiShortcuts(entry.message))}</span>
+      <strong class="chat-author">${renderPlayerAvatar(player, "chat-avatar")}<span>${escapeHtml(authorName)}</span></strong>
+      <span class="chat-bubble">${renderChatContent(entry.message)}</span>
     </div>
   `;
 }
@@ -2715,6 +3477,7 @@ window.addEventListener("resize", () => {
     window.requestAnimationFrame(() => {
       constrainDice3dWorld();
       keepSettledDice3dInView();
+      state.dice3d.sizeKey = dice3dStageSizeKey();
     });
   });
 });
@@ -2788,9 +3551,14 @@ if (els.celebrationLayer) {
     action("restart");
   });
 }
+if (els.confirmDialog) {
+  els.confirmDialog.addEventListener("click", handleConfirmDialogClick);
+}
 document.addEventListener("pointerdown", () => ensureAudioContext(), { once: true });
 document.addEventListener("pointerdown", handleChatEmojiOutsidePointerDown);
+document.addEventListener("pointerdown", handlePlayerMenuOutsidePointerDown);
 document.addEventListener("keydown", () => ensureAudioContext(), { once: true });
+document.addEventListener("keydown", handleConfirmDialogKeydown, true);
 document.addEventListener("keydown", handleRollShortcut);
 document.addEventListener("keydown", handleDieShortcut);
 document.addEventListener("keydown", handleChatEmojiEscape);
@@ -2801,17 +3569,33 @@ if (els.syncRecoveryAction) {
     void action("roll");
   });
 }
+if (els.playersList) {
+  els.playersList.addEventListener("click", handlePlayerMenuClick);
+}
 if (els.chatForm) {
   els.chatForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     await sendChat(els.chatInput?.value);
     toggleChatEmojiPanel(false);
+    closeChatShortcutSuggestions();
   });
+}
+if (els.chatInput) {
+  els.chatInput.addEventListener("input", handleChatInputChanged);
+  els.chatInput.addEventListener("click", handleChatInputChanged);
+  els.chatInput.addEventListener("keyup", (event) => {
+    if (["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(event.key)) return;
+    handleChatInputChanged();
+  });
+  els.chatInput.addEventListener("keydown", handleChatShortcutKeydown);
 }
 if (els.chatEmojiToggle) {
   els.chatEmojiToggle.addEventListener("click", () => {
     toggleChatEmojiPanel();
   });
+}
+if (els.chatShortcutSuggestions) {
+  els.chatShortcutSuggestions.addEventListener("click", handleChatShortcutSuggestionClick);
 }
 if (els.chatEmojiPanel) {
   els.chatEmojiPanel.addEventListener("click", async (event) => {
@@ -2825,7 +3609,8 @@ if (els.chatEmojiPanel) {
 
     const button = event.target.closest("[data-chat-emoji]");
     if (!button) return;
-    insertChatText(button.dataset.chatEmoji || "");
+    const shortcut = button.dataset.chatShortcut || "";
+    insertChatText(shortcut ? `${shortcut} ` : button.dataset.chatEmoji || "");
     toggleChatEmojiPanel(false);
   });
 }
