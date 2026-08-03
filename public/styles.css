@@ -1047,24 +1047,51 @@ input {
   z-index: 9;
 }
 
-.chat-quote-button {
+.chat-special-actions {
+  display: grid;
+  gap: 6px;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.chat-quote-button,
+.chat-tone-lyric-button {
   align-items: center;
+  border-radius: 7px;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 30px;
+}
+
+.chat-quote-button {
   background: #fff7db;
   border: 1px solid #f4dc91;
-  border-radius: 7px;
   color: #64501a;
-  display: inline-flex;
   font-size: 0.75rem;
   font-weight: 900;
   gap: 6px;
-  grid-column: 1 / -1;
-  justify-content: center;
-  min-height: 30px;
   padding: 6px 8px;
 }
 
+.chat-tone-lyric-button {
+  background: #eef7f3;
+  border: 1px solid #bddbcf;
+  min-width: 34px;
+  padding: 3px;
+}
+
+.chat-tone-lyric-photo {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  height: 24px;
+  object-fit: cover;
+  width: 24px;
+}
+
 .chat-quote-button:hover,
-.chat-quote-button:focus-visible {
+.chat-quote-button:focus-visible,
+.chat-tone-lyric-button:hover,
+.chat-tone-lyric-button:focus-visible {
   background: #ffefb8;
   outline: none;
 }
@@ -1094,6 +1121,11 @@ input {
   margin: 1px 2px;
   vertical-align: middle;
   width: 40px;
+}
+
+.chat-tone-lyric-inline-icon {
+  height: 30px;
+  width: 30px;
 }
 
 .chat-shortcut-suggestion {
@@ -1403,9 +1435,11 @@ input {
 }
 
 .dice-table {
+  --active-die-size: 58px;
   background: var(--dice-table-bg);
   border-radius: 8px;
   box-shadow: var(--dice-table-shadow);
+  --dice-row-gap: 12px;
   display: grid;
   gap: 12px;
   grid-template-areas:
@@ -1413,8 +1447,11 @@ input {
     "saved";
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;
+  --held-die-size: 54px;
+  --held-row-gap: 8px;
   min-height: 388px;
   padding: 12px;
+  position: relative;
 }
 
 .felt-area,
@@ -1512,22 +1549,22 @@ input {
 
 .dice-row {
   display: grid;
-  gap: 12px;
+  gap: var(--dice-row-gap);
 }
 
 .active-dice {
   align-content: end;
-  grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 58px));
+  grid-template-columns: repeat(var(--dice-count, 5), minmax(0, var(--active-die-size)));
   justify-content: center;
-  min-height: 58px;
+  min-height: var(--active-die-size);
   padding-top: 2px;
   position: relative;
   z-index: 3;
 }
 
 .dice-table.has-3d-roll .active-dice {
-  grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 58px));
-  min-height: 58px;
+  grid-template-columns: repeat(var(--dice-count, 5), minmax(0, var(--active-die-size)));
+  min-height: var(--active-die-size);
   padding-top: 2px;
   position: relative;
   z-index: 3;
@@ -1540,8 +1577,8 @@ input {
 
 .held-dice {
   align-content: center;
-  gap: 8px;
-  grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 54px));
+  gap: var(--held-row-gap);
+  grid-template-columns: repeat(var(--dice-count, 5), minmax(0, var(--held-die-size)));
   justify-content: center;
   width: 100%;
 }
@@ -1712,6 +1749,17 @@ body[data-dice-theme="glitter"] .die::after {
   background: var(--die-pip);
 }
 
+.roll-controls {
+  align-items: flex-start;
+  display: flex;
+  gap: 6px;
+  max-width: min(406px, calc(100% - 132px));
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 4;
+}
+
 .roll-box {
   align-items: center;
   background: var(--felt-roll-bg);
@@ -1722,12 +1770,8 @@ body[data-dice-theme="glitter"] .die::after {
   gap: 4px 8px;
   grid-template-columns: auto minmax(0, auto);
   justify-items: start;
-  max-width: min(360px, calc(100% - 132px));
+  min-width: 0;
   padding: 7px;
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  z-index: 4;
 }
 
 .roll-status {
@@ -1772,6 +1816,110 @@ body[data-dice-theme="glitter"] .die::after {
 .roll-box .sync-recovery {
   grid-column: 1 / -1;
   max-width: 100%;
+}
+
+.roll-sound-toggle {
+  flex: 0 0 auto;
+}
+
+.table-settings {
+  bottom: clamp(14px, 2vw, 24px);
+  position: fixed;
+  right: clamp(14px, 2vw, 24px);
+  z-index: 30;
+}
+
+.settings-toggle {
+  list-style: none;
+}
+
+.settings-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.settings-panel {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 18px 42px rgba(23, 33, 29, 0.22);
+  display: grid;
+  gap: 12px;
+  max-height: min(320px, calc(100vh - 180px));
+  overflow: auto;
+  padding: 12px;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: min(260px, calc(100vw - 40px));
+}
+
+.settings-panel .dice-customizer,
+.settings-panel .felt-customizer {
+  display: grid;
+  gap: 8px;
+  justify-content: center;
+}
+
+.settings-panel .dice-customizer {
+  grid-template-columns: repeat(5, 40px);
+}
+
+.settings-panel .felt-customizer {
+  border-top: 1px solid rgba(23, 33, 29, 0.1);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 12px;
+}
+
+.settings-panel .theme-button {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(244, 247, 245, 0.88));
+  border-color: rgba(23, 33, 29, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 6px 14px rgba(23, 33, 29, 0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+.settings-panel .theme-button:hover:not(:disabled) {
+  border-color: rgba(29, 138, 112, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 9px 16px rgba(23, 33, 29, 0.12);
+  transform: translateY(-1px);
+}
+
+.settings-panel .theme-button.is-active {
+  border-color: var(--green);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 0 0 2px rgba(29, 138, 112, 0.18),
+    0 9px 16px rgba(23, 33, 29, 0.12);
+}
+
+.settings-panel .theme-button.is-active::after {
+  background: var(--green);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(23, 33, 29, 0.18);
+  content: "";
+  height: 8px;
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  width: 8px;
+  z-index: 2;
+}
+
+.settings-panel .dice-customizer .theme-button {
+  height: 40px;
+  width: 40px;
+}
+
+.settings-panel .felt-customizer .theme-button {
+  height: 36px;
+  padding: 5px;
+  width: 100%;
 }
 
 .roll-box .roll-meta-saved,
@@ -1870,6 +2018,7 @@ body[data-dice-theme="glitter"] .die::after {
 }
 
 .theme-button,
+.settings-toggle,
 .sound-toggle {
   align-items: center;
   background: #f4f7f5;
@@ -1886,6 +2035,7 @@ body[data-dice-theme="glitter"] .die::after {
 }
 
 .theme-button.is-active,
+.table-settings[open] .settings-toggle,
 .sound-toggle[aria-pressed="true"] {
   background: #e9f8f1;
   border-color: var(--green);
@@ -1898,6 +2048,56 @@ body[data-dice-theme="glitter"] .die::after {
   display: inline-block;
   height: 16px;
   width: 16px;
+}
+
+.settings-panel .swatch {
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.settings-panel .dice-customizer .swatch {
+  border-color: rgba(23, 33, 29, 0.26);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 -4px 0 rgba(23, 33, 29, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 7px 12px rgba(23, 33, 29, 0.16);
+  height: 28px;
+  transform: rotate(-7deg);
+  width: 28px;
+}
+
+.settings-panel .dice-customizer .swatch::after {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(23, 33, 29, 0.86) 0 7%, transparent 8%),
+    radial-gradient(circle at 50% 50%, rgba(23, 33, 29, 0.86) 0 7%, transparent 8%),
+    radial-gradient(circle at 70% 70%, rgba(23, 33, 29, 0.86) 0 7%, transparent 8%);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.settings-panel .felt-customizer .swatch {
+  border-color: rgba(23, 33, 29, 0.2);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 -10px 18px rgba(23, 33, 29, 0.12);
+  height: 100%;
+  overflow: hidden;
+  width: 100%;
+}
+
+.settings-panel .felt-customizer .swatch::after {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.22), transparent 24% 74%, rgba(255, 255, 255, 0.16)),
+    radial-gradient(circle at 22% 28%, rgba(255, 255, 255, 0.22), transparent 34%);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
 }
 
 .swatch.default {
@@ -3033,13 +3233,17 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .dice-table {
+    --active-die-size: 54px;
     border-width: 6px;
+    --dice-row-gap: 8px;
     gap: 8px;
     grid-template-areas:
       "felt"
       "saved";
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
+    --held-die-size: 48px;
+    --held-row-gap: 8px;
     min-height: 392px;
     padding: 8px;
   }
@@ -3067,18 +3271,18 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .active-dice {
-    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 54px));
-    min-height: 54px;
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, var(--active-die-size)));
+    min-height: var(--active-die-size);
     padding-top: 2px;
   }
 
   body.in-game .dice-table.has-3d-roll .active-dice {
-    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 54px));
-    min-height: 54px;
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, var(--active-die-size)));
+    min-height: var(--active-die-size);
   }
 
   body.in-game .held-dice {
-    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 48px));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, var(--held-die-size)));
   }
 
   body.in-game .die {
@@ -3097,7 +3301,7 @@ body[data-dice-theme="glitter"] .die::after {
     padding: 10px;
   }
 
-  body.in-game .roll-box {
+  body.in-game .roll-controls {
     right: 7px;
     top: 7px;
   }
@@ -3130,6 +3334,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .theme-button,
+  body.in-game .settings-toggle,
   body.in-game .sound-toggle {
     font-size: 0.76rem;
     height: 30px;
@@ -3329,6 +3534,10 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .dice-table {
+    --active-die-size: 54px;
+    --dice-row-gap: 8px;
+    --held-die-size: 48px;
+    --held-row-gap: 8px;
     grid-template-areas:
       "felt"
       "saved";
@@ -3362,6 +3571,7 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .theme-button,
+  body.in-game .settings-toggle,
   body.in-game .sound-toggle {
     font-size: var(--font-size-min);
     height: 30px;
@@ -3430,6 +3640,8 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .dice-table {
+    --active-die-size: 48px;
+    --held-die-size: 44px;
     min-height: 374px;
   }
 
@@ -3442,17 +3654,17 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   body.in-game .active-dice {
-    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 48px));
-    min-height: 48px;
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, var(--active-die-size)));
+    min-height: var(--active-die-size);
     padding-top: 2px;
   }
 
   body.in-game .dice-table.has-3d-roll .active-dice {
-    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 48px));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, var(--active-die-size)));
   }
 
   body.in-game .held-dice {
-    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 44px));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, var(--held-die-size)));
   }
 
   body.in-game .turn-bar h1 {
@@ -3480,6 +3692,14 @@ body[data-dice-theme="glitter"] .die::after {
 
 }
 
+@media (max-width: 979px) {
+  .dice-3d-stage {
+    aspect-ratio: auto;
+    height: clamp(260px, 40vw, 340px);
+    min-height: 0;
+  }
+}
+
 @media (max-width: 760px) {
   .setup,
   .game-layout,
@@ -3490,10 +3710,14 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   .dice-table {
+    --active-die-size: clamp(54px, 8.5vw, 64px);
+    --dice-row-gap: 8px;
     grid-template-areas:
       "felt"
       "saved";
     grid-template-rows: auto auto;
+    --held-die-size: 50px;
+    --held-row-gap: 8px;
   }
 
   .felt-area {
@@ -3501,7 +3725,8 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   .dice-3d-stage {
-    min-height: 232px;
+    height: clamp(232px, 44vw, 312px);
+    min-height: 0;
   }
 
   .play-column {
@@ -3594,19 +3819,51 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   .active-dice {
-    grid-template-columns: repeat(3, minmax(72px, 1fr));
+    align-content: center;
+    grid-template-columns: repeat(3, minmax(0, var(--active-die-size)));
+    min-height: var(--active-die-size);
   }
 
   .held-dice {
-    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, 58px));
+    grid-template-columns: repeat(var(--dice-count, 5), minmax(0, var(--held-die-size)));
+  }
+
+  .roll-controls {
+    max-width: min(300px, calc(100% - 108px));
   }
 
   .roll-box {
-    max-width: min(250px, calc(100% - 108px));
+    max-width: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .dice-table {
+    --held-die-size: 42px;
+  }
+
+  .roll-controls {
+    max-width: calc(100% - 14px);
+    top: 42px;
+  }
+
+  .saved-area {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+  }
+
+  .saved-area .table-label {
+    justify-self: start;
   }
 }
 
 @media (max-width: 430px) {
+  .dice-table {
+    --active-die-size: clamp(50px, 14vw, 58px);
+    --held-row-gap: 6px;
+  }
+
   .confirm-dialog {
     padding: 16px;
   }
@@ -3630,7 +3887,17 @@ body[data-dice-theme="glitter"] .die::after {
   }
 
   .active-dice {
-    grid-template-columns: repeat(2, minmax(86px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, var(--active-die-size)));
+  }
+
+  .saved-area {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+  }
+
+  .saved-area .table-label {
+    justify-self: start;
   }
 
   .held-dice {

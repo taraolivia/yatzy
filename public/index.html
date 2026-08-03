@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Yatzy</title>
-    <link rel="stylesheet" href="/styles.css?v=20260728-footer-chat-type">
+    <link rel="stylesheet" href="/styles.css?v=20260729-dice-picker-redesign">
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
   </head>
   <body>
@@ -185,20 +185,25 @@
                       <span>Kastefelt</span>
                       <span id="activeDiceLabel" aria-hidden="true"></span>
                     </div>
-                    <div class="roll-box">
-                      <div class="roll-status" id="rollStatus">Din tur</div>
-                      <button class="primary roll-button" id="rollDice" type="button">
-                        <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/dice.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
-                        <span>Kast</span>
-                      </button>
-                      <div class="roll-meta" id="rollMeta">0 kast brukt</div>
-                      <div class="sync-recovery is-hidden" id="syncRecovery" role="status" aria-live="polite">
-                        <span id="syncRecoveryText">Spillet er synkronisert igjen.</span>
-                        <button class="secondary small" id="syncRecoveryAction" type="button">
-                          <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/redo.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
-                          <span>Kast p&aring; nytt</span>
+                    <div class="roll-controls">
+                      <div class="roll-box">
+                        <div class="roll-status" id="rollStatus">Din tur</div>
+                        <button class="primary roll-button" id="rollDice" type="button">
+                          <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/dice.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                          <span>Kast</span>
                         </button>
+                        <div class="roll-meta" id="rollMeta">0 kast brukt</div>
+                        <div class="sync-recovery is-hidden" id="syncRecovery" role="status" aria-live="polite">
+                          <span id="syncRecoveryText">Spillet er synkronisert igjen.</span>
+                          <button class="secondary small" id="syncRecoveryAction" type="button">
+                            <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/redo.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                            <span>Kast p&aring; nytt</span>
+                          </button>
+                        </div>
                       </div>
+                      <button class="sound-toggle roll-sound-toggle" id="soundToggle" type="button" aria-pressed="true" aria-label="Lyd p&aring;" title="Lyd p&aring;">
+                        <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/high-volume.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                      </button>
                     </div>
                     <div class="dice-3d-stage" id="dice3dStage" aria-hidden="true"></div>
                     <div class="dice-row active-dice" id="activeDiceRow"></div>
@@ -210,69 +215,70 @@
                     </div>
                     <div class="dice-row held-dice" id="heldDiceRow"></div>
                   </div>
+
+                  <details class="table-settings" id="tableSettings">
+                    <summary class="settings-toggle" aria-label="Innstillinger" title="Innstillinger">
+                      <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/settings.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+                    </summary>
+                    <div class="settings-panel">
+                      <fieldset class="dice-customizer" id="diceCustomizer">
+                        <legend>Terninger</legend>
+                        <button class="theme-button" type="button" data-dice-theme="default" aria-label="Default terninger" title="Default terninger">
+                          <span class="swatch default"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-dice-theme="wooden" aria-label="Treterninger" title="Treterninger">
+                          <span class="swatch wooden"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-dice-theme="blueGreenMetal" aria-label="Blå metallterninger" title="Blå metallterninger">
+                          <span class="swatch blueGreenMetal"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-dice-theme="rock" aria-label="Steinterninger" title="Steinterninger">
+                          <span class="swatch rock"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-dice-theme="smooth" aria-label="Rosa terninger" title="Rosa terninger">
+                          <span class="swatch smooth"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-dice-theme="smooth-pip" aria-label="Glatte prikkterninger" title="Glatte prikkterninger">
+                          <span class="swatch smooth-pip"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-dice-theme="lavender" aria-label="Lavendel-lilla terninger" title="Lavendel-lilla terninger">
+                          <span class="swatch lavender"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-dice-theme="gold" aria-label="Gullterninger" title="Gullterninger">
+                          <span class="swatch gold"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-dice-theme="glitter" aria-label="Glitterterninger" title="Glitterterninger">
+                          <span class="swatch glitter"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-dice-theme="yellow" aria-label="Gule terninger" title="Gule terninger">
+                          <span class="swatch yellow"></span>
+                        </button>
+                      </fieldset>
+
+                      <fieldset class="felt-customizer" id="feltCustomizer">
+                        <legend>Kastefelt</legend>
+                        <button class="theme-button" type="button" data-felt-theme="tavern" aria-label="Tavern kastefelt" title="Tavern kastefelt">
+                          <span class="swatch felt-tavern"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-felt-theme="green" aria-label="Grønt kastefelt" title="Grønt kastefelt">
+                          <span class="swatch felt-green"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-felt-theme="blue" aria-label="Blått kastefelt" title="Blått kastefelt">
+                          <span class="swatch felt-blue"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-felt-theme="red" aria-label="Rødt kastefelt" title="Rødt kastefelt">
+                          <span class="swatch felt-red"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-felt-theme="mahogany" aria-label="Mahogni kastefelt" title="Mahogni kastefelt">
+                          <span class="swatch felt-mahogany"></span>
+                        </button>
+                        <button class="theme-button" type="button" data-felt-theme="steel" aria-label="Stål kastefelt" title="Stål kastefelt">
+                          <span class="swatch felt-steel"></span>
+                        </button>
+                      </fieldset>
+                    </div>
+                  </details>
                 </div>
-              </div>
-
-              <div class="play-tools">
-                <fieldset class="dice-customizer" id="diceCustomizer">
-                  <legend>Terninger</legend>
-                  <button class="theme-button" type="button" data-dice-theme="default" aria-label="Default terninger" title="Default terninger">
-                    <span class="swatch default"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-dice-theme="wooden" aria-label="Treterninger" title="Treterninger">
-                    <span class="swatch wooden"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-dice-theme="blueGreenMetal" aria-label="Blå metallterninger" title="Blå metallterninger">
-                    <span class="swatch blueGreenMetal"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-dice-theme="rock" aria-label="Steinterninger" title="Steinterninger">
-                    <span class="swatch rock"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-dice-theme="smooth" aria-label="Rosa terninger" title="Rosa terninger">
-                    <span class="swatch smooth"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-dice-theme="smooth-pip" aria-label="Glatte prikkterninger" title="Glatte prikkterninger">
-                    <span class="swatch smooth-pip"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-dice-theme="lavender" aria-label="Lavendel-lilla terninger" title="Lavendel-lilla terninger">
-                    <span class="swatch lavender"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-dice-theme="gold" aria-label="Gullterninger" title="Gullterninger">
-                    <span class="swatch gold"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-dice-theme="glitter" aria-label="Glitterterninger" title="Glitterterninger">
-                    <span class="swatch glitter"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-dice-theme="yellow" aria-label="Gule terninger" title="Gule terninger">
-                    <span class="swatch yellow"></span>
-                  </button>
-                </fieldset>
-
-                <fieldset class="felt-customizer" id="feltCustomizer">
-                  <legend>Kastefelt</legend>
-                  <button class="theme-button" type="button" data-felt-theme="tavern" aria-label="Tavern kastefelt" title="Tavern kastefelt">
-                    <span class="swatch felt-tavern"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-felt-theme="green" aria-label="Grønt kastefelt" title="Grønt kastefelt">
-                    <span class="swatch felt-green"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-felt-theme="blue" aria-label="Blått kastefelt" title="Blått kastefelt">
-                    <span class="swatch felt-blue"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-felt-theme="red" aria-label="Rødt kastefelt" title="Rødt kastefelt">
-                    <span class="swatch felt-red"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-felt-theme="mahogany" aria-label="Mahogni kastefelt" title="Mahogni kastefelt">
-                    <span class="swatch felt-mahogany"></span>
-                  </button>
-                  <button class="theme-button" type="button" data-felt-theme="steel" aria-label="Stål kastefelt" title="Stål kastefelt">
-                    <span class="swatch felt-steel"></span>
-                  </button>
-                </fieldset>
-
-                <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="true" aria-label="Lyd p&aring;" title="Lyd p&aring;">
-                  <img class="scribby-icon button-icon" src="https://img.icons8.com/scribby/100/high-volume.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
-                </button>
               </div>
             </div>
 
@@ -349,6 +355,6 @@
       </div>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js?v=20260728-footer-chat-type" defer></script>
+    <script src="/app.js?v=20260731-roll-recovery" defer></script>
   </body>
 </html>

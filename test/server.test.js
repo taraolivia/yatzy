@@ -33,6 +33,42 @@ async function get(baseUrl, path) {
   return { response, payload };
 }
 
+async function openEvents(baseUrl, path) {
+  const response = await fetch(`${baseUrl}${path}`);
+  const reader = response.body.getReader();
+  let buffer = "";
+
+  async function readEvent() {
+    while (!buffer.includes("\n\n")) {
+      const read = reader.read();
+      let timeoutId;
+      const timeout = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("Timed out waiting for event.")), 2_000);
+      });
+      const { done, value } = await Promise.race([read, timeout]);
+      clearTimeout(timeoutId);
+      if (done) break;
+      buffer += Buffer.from(value).toString("utf8");
+    }
+
+    const eventEnd = buffer.indexOf("\n\n");
+    const raw = eventEnd === -1 ? buffer : buffer.slice(0, eventEnd);
+    buffer = eventEnd === -1 ? "" : buffer.slice(eventEnd + 2);
+    const data = raw
+      .split("\n")
+      .filter((line) => line.startsWith("data: "))
+      .map((line) => line.slice(6))
+      .join("\n");
+    return JSON.parse(data);
+  }
+
+  return {
+    response,
+    readEvent,
+    close: () => reader.cancel()
+  };
+}
+
 test("test-only dice fixtures still protect held dice", async () => {
   const baseUrl = await listen();
   try {
@@ -262,6 +298,41 @@ test("announces a server-authoritative roll before committing its forced visual 
   }
 });
 
+test("announces a synchronized Maxi roll with all six dice", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "maxi" });
+    let { game, playerToken } = created.payload;
+
+    const started = await post(baseUrl, `/api/games/${game.code}/start`, {
+      playerToken,
+      version: game.version
+    });
+    game = started.payload.game;
+
+    const planned = await post(baseUrl, `/api/games/${game.code}/roll`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(planned.response.status, 200);
+    game = planned.payload.game;
+    assert.deepEqual(game.activeRoll.diceIndexes, [0, 1, 2, 3, 4, 5]);
+    assert.equal(game.activeRoll.values.length, 6);
+    assert.deepEqual(game.activeRoll.dice, game.activeRoll.values);
+
+    const completed = await post(baseUrl, `/api/games/${game.code}/complete`, {
+      playerToken,
+      rollId: game.activeRoll.id
+    });
+    assert.equal(completed.response.status, 200);
+    assert.equal(completed.payload.game.activeRoll, null);
+    assert.equal(completed.payload.game.dice.length, 6);
+    assert.equal(completed.payload.game.rollsUsed, 1);
+  } finally {
+    await close();
+  }
+});
+
 test("canceling a planned roll still commits the planned dice", async () => {
   const baseUrl = await listen();
   try {
@@ -333,6 +404,51 @@ test("expired planned rolls are committed instead of discarded", async () => {
     assert.equal(left.response.status, 200);
     assert.equal(left.payload.game.activeRoll, null);
     assert.equal(left.payload.game.players[0].isActive, false);
+  } finally {
+    Date.now = originalNow;
+    await close();
+  }
+});
+
+test("open event streams auto-recover stuck planned rolls after the timeout", async () => {
+  const baseUrl = await listen();
+  const originalNow = Date.now;
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "normal" });
+    let { game, playerToken } = created.payload;
+
+    const started = await post(baseUrl, `/api/games/${game.code}/start`, {
+      playerToken,
+      version: game.version
+    });
+    game = started.payload.game;
+
+    const planned = await post(baseUrl, `/api/games/${game.code}/roll`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(planned.response.status, 200);
+    game = planned.payload.game;
+    const plannedDice = [...game.activeRoll.dice];
+    const startedAt = Date.parse(game.activeRoll.startedAt);
+    let now = startedAt + 29_990;
+    Date.now = () => now;
+
+    const events = await openEvents(baseUrl, `/api/games/${game.code}/events`);
+    try {
+      assert.equal(events.response.status, 200);
+      const initialState = await events.readEvent();
+      assert.equal(initialState.activeRoll.id, game.activeRoll.id);
+      assert.equal(initialState.rollsUsed, 0);
+
+      now = startedAt + 31_000;
+      const recoveredState = await events.readEvent();
+      assert.equal(recoveredState.activeRoll, null);
+      assert.deepEqual(recoveredState.dice, plannedDice);
+      assert.equal(recoveredState.rollsUsed, 1);
+    } finally {
+      await events.close();
+    }
   } finally {
     Date.now = originalNow;
     await close();
@@ -420,6 +536,84 @@ test("uses Maxi saved rolls only when a chip is spent", async () => {
     assert.equal(scored.response.status, 200);
     game = scored.payload.game;
     assert.equal(game.players[0].savedRolls, 1);
+  } finally {
+    await close();
+  }
+});
+
+test("spends Maxi saved rolls when a synchronized chip roll completes", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "maxi" });
+    assert.equal(created.response.status, 201);
+    let { game, playerToken } = created.payload;
+    const code = game.code;
+
+    const started = await post(baseUrl, `/api/games/${code}/start`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(started.response.status, 200);
+    game = started.payload.game;
+
+    const quickRoll = await post(baseUrl, `/api/games/${code}/roll`, {
+      playerToken,
+      version: game.version,
+      dice: [1, 1, 1, 2, 3, 4]
+    });
+    assert.equal(quickRoll.response.status, 200);
+    game = quickRoll.payload.game;
+
+    const quickScore = await post(baseUrl, `/api/games/${code}/score`, {
+      playerToken,
+      version: game.version,
+      categoryId: "ones"
+    });
+    assert.equal(quickScore.response.status, 200);
+    game = quickScore.payload.game;
+    assert.equal(game.players[0].savedRolls, 2);
+
+    for (const dice of [
+      [2, 2, 2, 3, 4, 5],
+      [2, 2, 3, 3, 4, 5],
+      [2, 3, 3, 4, 4, 5]
+    ]) {
+      const rolled = await post(baseUrl, `/api/games/${code}/roll`, {
+        playerToken,
+        version: game.version,
+        dice
+      });
+      assert.equal(rolled.response.status, 200);
+      game = rolled.payload.game;
+    }
+
+    assert.equal(game.rollsLeft, 0);
+    assert.equal(game.canUseSavedRoll, true);
+    assert.equal(game.players[0].savedRolls, 2);
+
+    const planned = await post(baseUrl, `/api/games/${code}/roll`, {
+      playerToken,
+      version: game.version,
+      useSavedRoll: true
+    });
+    assert.equal(planned.response.status, 200);
+    game = planned.payload.game;
+    assert.equal(game.rollsUsed, 3);
+    assert.equal(game.players[0].savedRolls, 2);
+    assert.equal(game.activeRoll.useSavedRoll, true);
+
+    const completed = await post(baseUrl, `/api/games/${code}/complete`, {
+      playerToken,
+      rollId: game.activeRoll.id
+    });
+    assert.equal(completed.response.status, 200);
+    game = completed.payload.game;
+
+    assert.equal(game.activeRoll, null);
+    assert.equal(game.rollsUsed, 4);
+    assert.equal(game.extraRollsUsed, 1);
+    assert.equal(game.players[0].savedRolls, 1);
+    assert.equal(game.log[0].usedSavedRoll, true);
   } finally {
     await close();
   }
@@ -782,6 +976,56 @@ test("forced mode can disable early Yatzy placement", async () => {
       categoryId: "yatzy"
     });
     assert.equal(scored.response.status, 400);
+  } finally {
+    await close();
+  }
+});
+
+test("forced Maxi mode lets Maxiyatzy score early and defer the skipped field", async () => {
+  const baseUrl = await listen();
+  try {
+    const created = await post(baseUrl, "/api/games", { name: "Tara", mode: "maxi" });
+    assert.equal(created.response.status, 201);
+    let { game, playerToken } = created.payload;
+    const code = game.code;
+
+    const settings = await post(baseUrl, `/api/games/${code}/settings`, {
+      playerToken,
+      version: game.version,
+      forcedMode: true
+    });
+    assert.equal(settings.response.status, 200);
+    game = settings.payload.game;
+
+    const started = await post(baseUrl, `/api/games/${code}/start`, {
+      playerToken,
+      version: game.version
+    });
+    assert.equal(started.response.status, 200);
+    game = started.payload.game;
+
+    const rolled = await post(baseUrl, `/api/games/${code}/roll`, {
+      playerToken,
+      version: game.version,
+      dice: [6, 6, 6, 6, 6, 6]
+    });
+    assert.equal(rolled.response.status, 200);
+    game = rolled.payload.game;
+    assert.equal(game.nextForcedCategoryId, "ones");
+    assert.equal(game.scorePreview.ones, 0);
+    assert.equal(game.scorePreview.maxiYatzy, 100);
+
+    const scored = await post(baseUrl, `/api/games/${code}/score`, {
+      playerToken,
+      version: game.version,
+      categoryId: "maxiYatzy"
+    });
+    assert.equal(scored.response.status, 200);
+    game = scored.payload.game;
+    assert.equal(game.players[0].scores.maxiYatzy, 100);
+    assert.equal(game.players[0].scores.ones, null);
+    assert.equal(game.players[0].savedRolls, 2);
+    assert.equal(game.nextForcedCategoryId, "twos");
   } finally {
     await close();
   }

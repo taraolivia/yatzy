@@ -96,6 +96,7 @@ const state = {
   playerMenuSeatId: null,
   toastTimer: null,
   celebrationTimer: null,
+  activeRollRecoveryTimer: null,
   celebratedYatzies: new Set(),
   rulesPanelOpen: false,
   isRolling: false,
@@ -368,6 +369,7 @@ const SCRIBBY_ICON_NAMES = {
   "get-quote": "Get quote",
   goal: "Goal",
   "gold-pot": "Gold pot",
+  guitar: "Guitar",
   hand: "Hand",
   "hang-10": "Hang 10",
   handshake: "Handshake",
@@ -388,8 +390,12 @@ const SCRIBBY_ICON_NAMES = {
   "medal-first-place": "Medal first place",
   "medieval-crown": "Medieval crown",
   meeting: "Meeting",
+  microphone: "Microphone",
   "monster-face": "Monster face",
   muscle: "Muscle",
+  music: "Music",
+  "music-record": "Music record",
+  "musical-note": "Musical note",
   "nerf-gun": "Nerf gun",
   "no-audio": "Sound off",
   "no-entry": "No entry",
@@ -532,6 +538,11 @@ Object.assign(CHAT_REACTION_ICONS, {
   sparkles: { icon: "sparkling", emoji: "✨", label: "Sparkles" },
   moneybag: { icon: "dollar-bag", emoji: "💰", label: "Money bag" },
   "money-bag": { icon: "dollar-bag", emoji: "💰", label: "Money bag" },
+  guitar: { icon: "guitar", emoji: "🎸", label: "Guitar" },
+  music: { icon: "music", emoji: "🎵", label: "Music" },
+  "musical-note": { icon: "musical-note", emoji: "🎶", label: "Musical note" },
+  microphone: { icon: "microphone", emoji: "🎤", label: "Microphone" },
+  "music-record": { icon: "music-record", emoji: "💿", label: "Music record" },
 });
 const CHAT_EMOJI_SHORTCUTS = {
   ...Object.fromEntries(Object.entries(CHAT_REACTION_ICONS).map(([key, entry]) => [key, entry.emoji])),
@@ -545,6 +556,37 @@ const CHAT_SHORTCUT_SUGGESTION_KEYS = [
   ...Object.keys(CHAT_REACTION_ICONS).filter((key) => !CHAT_PRIMARY_SHORTCUT_SET.has(key)).sort((a, b) => a.localeCompare(b)),
 ];
 const CHAT_SHORTCUT_SUGGESTION_LIMIT = 8;
+const TONES_YATZY_LYRIC_ICON_KEY = "guitar";
+// Add short user-provided lyric excerpts here; the button sends them in order.
+const TONES_YATZY_LYRIC_LINES = [
+  "Sitta tett innte, trilla terningane, og kos' okke ",
+  "akkurat som om me va på hytto",
+  "Skal me spela yatzy, skal me spela yatzy",
+  "åååååh, skal me spela yatzy",
+  "Dar e plass te ein te i sofaen, trekk i hoba, så begynne me, komman",
+  "Ett par i to, ett par i to, blir det mesten ingen poeng utav",
+  "Og stor straight, det må du mesten få på fyssta kastet",
+  "Hvis du ikkje he sjansen igjen, te å ha det på",
+  "Hvis det sko skjæra seg e det bare ein ting å sei, det e galskap",
+  "Og stor straight, det må du mesten få på fyssta kastet",
+  "Du må gjerna styrka noge, du må gjerna stryka noge",
+  "Du he brukt opp sjansen: kå ska du stryka då?",
+  "Då kan du for eksempel stryka einarane",
+  "Å ja du he ett par, å nei du he'kje ett par",
+  "Du må'kje røra terningane før eg he sitt på di",
+  "Du får trilla om igjen",
+  "Åh, det e vanskelig å få, alle fem like i yatzy. Det e vanskelig å få, alle fem like i yatzy",
+  "Det gjelde å få tri av kver sort, der oppe. Då fer du bonus, den e'kje dum å ha",
+  "Nei, det gjelde ikkje på golvet",
+  "Hus e noge drid å sitta igjen med, vanskelig å få",
+  "Når det nimma seg slutten, og det begynne å røyne på",
+  "Hus e noge drid å sitta igjen med då",
+  "Åh, det e vanskelig å få, alle fem like i yatzy. ",
+  "Det e vanskelig å få, alle fem like i yatzy",
+  "Åh, du kan sei at hvis du fer yatzy, og de andre ikkje fer det he du nesten garantert vonne",
+  "Åh, fer du ikkje bonus, det vil sei tre av kver sort der oppe,",
+  "he du så godt som taaaaapt",
+];
 const CHAT_CRINGY_QUOTES = [
   "You miss 100% of the shots you don't take.",
   "What if I fall? Oh my darling, but what if you fly?",
@@ -572,6 +614,154 @@ const CHAT_CRINGY_QUOTES = [
   "Not all who wander are lost.",
   "Dance like no ones watching, sing like no ones listening, live each day like it's your last",
   "Hadde det vore lett hadde addle fått det",
+  "When life gives you dice, make Yatzy.",
+  "Keep your friends close and your sixes closer.",
+  "Roll with your heart, score with your soul.",
+  "Some call it luck, I call it table energy.",
+  "Born to roll, forced to calculate.",
+  "You are one throw away from a personality change.",
+  "If the dice are cold, warm them with belief.",
+  "Big points, soft heart.",
+  "Trust the process, blame the dice.",
+  "Today is a good day to be statistically unreasonable.",
+  "Throw like nobody is judging the scorecard.",
+  "You can't spell Yatzy without zesty.",
+  "May your rolls be high and your drama be low.",
+  "A little luck looks good on you.",
+  "Roll first, overthink later.",
+  "Sparkle like a bonus you barely earned.",
+  "Every champion once crossed out a category.",
+  "Good things come to those who shake.",
+  "Be brave enough to chase the upper bonus.",
+  "Manifest, roll, repeat.",
+  "This table runs on hope and snacks.",
+  "If you can dream it, you can probably roll three twos instead.",
+  "Let the dice decide, then take credit.",
+  "Confidence is silent. Yatzy is loud.",
+  "Your future is bright and possibly full of fives.",
+  "When in doubt, save the sixes.",
+  "The scorecard believes in you.",
+  "Chin up, dice cup out.",
+  "Tiny cubes, huge feelings.",
+  "Rolls before woes.",
+  "You bring the sparkle, the dice bring the suspense.",
+  "Luck is just preparation wearing glitter.",
+  "A full house starts with an open heart.",
+  "Keep calm and pretend this was the plan.",
+  "Sixes are temporary, friendship is forever.",
+  "Dreams don't work unless you shake them.",
+  "Your destiny has pips on it.",
+  "Be the reason someone says, wow, rude roll.",
+  "No risk, no ridiculous victory speech.",
+  "Soft hearts, sharp pencils, hot dice.",
+  "Bloom where you're planted, even if the pot is weird.",
+  "Your sparkle has excellent timing.",
+  "Progress counts, even in slippers.",
+  "Kindness is always in season.",
+  "Tiny steps still move mountains eventually.",
+  "Collect moments, not excuses.",
+  "Today deserves your best messy try.",
+  "Be a little kinder than necessary.",
+  "Let your weird be your wisdom.",
+  "Sunshine looks good on a stubborn heart.",
+  "You are enough, and then some.",
+  "Make today so sweet it needs a warning label.",
+  "Big dreams love small starts.",
+  "Good energy is a group project.",
+  "Your comfort zone called; it misses your sparkle.",
+  "Do it scared, but do it with snacks.",
+  "Life is short; make it unnecessarily charming.",
+  "Confidence is just hope with better posture.",
+  "Turn the page, underline the lesson.",
+  "Be the plot twist you hoped for.",
+  "Some days are soup; bring a spoon.",
+  "Keep going. Future you is already bragging.",
+  "Your best is allowed to look different today.",
+  "Dreams need deadlines and decent coffee.",
+  "Choose joy, but keep receipts.",
+  "Small wins are still wins.",
+  "Let today be suspiciously nice.",
+  "You glow different when you stop explaining yourself.",
+  "Make space for magic and clean socks.",
+  "Romanticize the errand.",
+  "Be soft, stay stubborn.",
+  "Your courage can start at very low volume.",
+  "Water your own garden first.",
+  "Bad days make good stories later.",
+  "Smile like you know the Wi-Fi password.",
+  "Everything is figureoutable with snacks and a chair.",
+  "The comeback can be in sweatpants.",
+  "Be the main character in your grocery list.",
+  "Life is a group chat; send something kind.",
+  "Grow through what you go through, preferably hydrated.",
+  "You have survived 100 percent of your awkward phases.",
+  "Rest is part of the sparkle strategy.",
+  "Put a little glitter on the agenda.",
+  "Start where you are, with what you have, and maybe a snack.",
+  "Do less doom, more bloom.",
+  "Joy looks good on everybody.",
+  "Your heart has good taste.",
+  "Let the little things be loudly lovely.",
+  "Some miracles are just good timing and clean laundry.",
+  "Be brave enough to be cringe.",
+  "You are not behind; you are buffering with style.",
+  "Today's forecast: partly chaotic, fully lovable.",
+  "Keep your hopes high and your standards higher.",
+  "One tiny yes can change the room.",
+  "The best view comes after the weird uphill part.",
+  "Your sparkle is not a limited resource.",
+  "Mistakes are just plot development.",
+  "Make peace with the pace.",
+  "Good things can still find your address.",
+  "Blessed, stressed, and doing my best.",
+  "Be the calm in your own tiny weather system.",
+  "Every day is a fresh sticky note.",
+  "Less perfection, more participation.",
+  "Don't quit before the good bit.",
+  "Your future self sent a tiny thumbs up.",
+  "When nothing goes right, add cheese.",
+  "Soft launch your confidence.",
+  "Big heart, small panic, onward.",
+  "The vibe is recovery and snacks.",
+  "Hustle gently.",
+  "May your coffee be strong and your boundaries stronger.",
+  "Keep it cute, keep it moving.",
+  "Your ordinary day is someone's dream day.",
+  "Look at you, becoming and everything.",
+  "Hope is a practical accessory.",
+  "Make room for the nice surprise.",
+  "Stay golden, stay hydrated.",
+  "You are the secret ingredient.",
+  "Let joy be slightly embarrassing.",
+  "The universe loves a dramatic entrance.",
+  "High standards, low drama.",
+  "Do the thing. Wear the outfit.",
+  "Your peace is worth the awkward conversation.",
+  "A little delusion can be seasoning.",
+  "Be sincere. It confuses the algorithm.",
+  "You are doing better than your browser tabs suggest.",
+  "Today's mantra: more sparkle, less spiral.",
+  "Rise, shine, and mildly overcommit.",
+  "Never underestimate a fresh notebook.",
+  "Keep your chin up and your snacks nearby.",
+  "Your dream called; it said stop ghosting it.",
+  "Normal is a setting on appliances.",
+  "May your day be gentle and your leftovers excellent.",
+  "Let the lesson be lighter than the guilt.",
+  "Somebody has to be iconic; might as well be you.",
+  "Your magic is in the trying.",
+  "Make the mundane flirt back.",
+  "Drink water and cause a small amount of wonder.",
+  "Create the vibe you hoped someone else would bring.",
+  "You can be a masterpiece and a work in progress with laundry to fold.",
+  "Keep showing up for the person you're becoming.",
+  "Main character energy, responsible bedtime edition.",
+  "Cry a little, sparkle a lot.",
+  "Brighter days are taking attendance.",
+  "The heart wants what it wants, and sometimes it wants fries.",
+  "Go where the good energy grows.",
+  "Self-care, but make it slightly impractical.",
+  "You're allowed to outgrow your old excuses.",
 ];
 
 const pipMap = {
@@ -758,7 +948,8 @@ async function synchronizedRoll(extra = {}) {
     await recoverActiveRollLock("Kastet hang, men rommet er hentet inn. Du kan fortsette.");
     return;
   }
-  if (!canRollDice()) return;
+  const rollExtra = rollRequestExtra(extra);
+  if (!canRollDice(rollExtra)) return;
   const previousGame = state.game;
   let rollPlan = null;
   let animationId = null;
@@ -772,7 +963,7 @@ async function synchronizedRoll(extra = {}) {
       body: JSON.stringify({
         playerToken: state.playerToken,
         version: previousGame.version,
-        ...extra,
+        ...rollExtra,
       }),
     });
     rollPlan = planned.game.activeRoll;
@@ -862,7 +1053,7 @@ async function recoverFromDesync(actionName) {
     const payload = await requestJson(`/api/games/${state.game.code}`);
     cancelIncomingRollAnimation();
     state.game = payload.game;
-    const canRetryRoll = actionName === "roll" && payload.game.status === "playing" && payload.game.currentSeatId === state.seatId && payload.game.rollsLeft > 0 && !payload.game.activeRoll;
+    const canRetryRoll = actionName === "roll" && payload.game.status === "playing" && payload.game.currentSeatId === state.seatId && (payload.game.rollsLeft > 0 || payload.game.canUseSavedRoll) && !payload.game.activeRoll;
     state.syncIssue = {
       canRetryRoll,
       message: canRetryRoll ? "En oppdatering kom samtidig. Ingen kast ble brukt — du kan kaste på nytt." : "Spillet var ute av takt. Siste servertilstand er hentet inn.",
@@ -976,6 +1167,7 @@ function applyIncomingGame(nextGame) {
 
 function leaveRoomLocally() {
   if (state.events) state.events.close();
+  clearActiveRollRecoveryRefresh();
   state.game = null;
   state.playerToken = null;
   state.seatId = null;
@@ -1171,6 +1363,22 @@ function isActiveRollRecoverable(activeRoll = state.game?.activeRoll) {
   return Boolean(activeRoll && activeRollAge(activeRoll) >= ACTIVE_ROLL_RECOVERY_READY_MS);
 }
 
+function clearActiveRollRecoveryRefresh() {
+  window.clearTimeout(state.activeRollRecoveryTimer);
+  state.activeRollRecoveryTimer = null;
+}
+
+function scheduleActiveRollRecoveryRefresh(game = state.game) {
+  clearActiveRollRecoveryRefresh();
+  if (!game?.activeRoll || !isMyTurn()) return;
+  const delay = Math.max(0, ACTIVE_ROLL_RECOVERY_READY_MS - activeRollAge(game.activeRoll) + 50);
+  state.activeRollRecoveryTimer = window.setTimeout(() => {
+    state.activeRollRecoveryTimer = null;
+    if (!state.game?.activeRoll || !isMyTurn() || state.pending || state.isRolling) return;
+    void recoverActiveRollLock("Kastet hang, men rommet er hentet inn. Du kan fortsette.");
+  }, delay);
+}
+
 function canSeeLastScoreUndo() {
   const undo = state.game?.lastScoreUndo;
   if (!undo) return false;
@@ -1181,14 +1389,23 @@ function canUndoLastScore() {
   return Boolean(canSeeLastScoreUndo() && !state.pending && !state.isRolling && !state.game?.activeRoll);
 }
 
-function canRollDice() {
+function canRollDice(extra = {}) {
+  const baseRollAvailable = state.game?.rollsLeft > 0 && extra.useSavedRoll !== true;
+  const savedRollAvailable = state.game?.canUseSavedRoll && (extra.useSavedRoll === true || state.game?.rollsLeft <= 0);
   return Boolean(
     state.game
     && isMyTurn()
-    && state.game.rollsLeft > 0
+    && (baseRollAvailable || savedRollAvailable)
     && !state.pending
     && !state.isRolling
   );
+}
+
+function rollRequestExtra(extra = {}) {
+  if (state.game?.rollsLeft <= 0 && state.game?.canUseSavedRoll) {
+    return { ...extra, useSavedRoll: true };
+  }
+  return extra;
 }
 
 function diceCount() {
@@ -2027,7 +2244,8 @@ function renderChatContent(message) {
     const match = CHAT_EMOJI_ICON_ENTRIES.find((entry) => text.startsWith(entry.emoji, index));
     if (match) {
       const label = SCRIBBY_ICON_NAMES[match.icon] || "Reaction";
-      html += `${renderScribbyIcon(match.icon, label, "scribby-icon chat-inline-icon")}<span class="sr-only">${escapeHtml(match.emoji)}</span>`;
+      const iconClass = match.icon === TONES_YATZY_LYRIC_ICON_KEY ? "scribby-icon chat-inline-icon chat-tone-lyric-inline-icon" : "scribby-icon chat-inline-icon";
+      html += `${renderScribbyIcon(match.icon, label, iconClass)}<span class="sr-only">${escapeHtml(match.emoji)}</span>`;
       index += match.emoji.length;
       continue;
     }
@@ -2055,6 +2273,7 @@ function render() {
   els.joinName.value ||= loadName();
 
   if (!hasGame) {
+    clearActiveRollRecoveryRefresh();
     clearDice3dStage();
     return;
   }
@@ -2360,6 +2579,7 @@ function renderDice() {
   els.rollDice.disabled = !canRollDice();
   els.rollDice.innerHTML = renderIconButtonContent("dice", rollButtonText(game));
   if (els.rollStatus) els.rollStatus.textContent = rollStatusText(game);
+  scheduleActiveRollRecoveryRefresh(game);
   renderRollMeta(game);
 }
 
@@ -2517,7 +2737,8 @@ function rollButtonText(game) {
   if (!isMyTurn()) return "Venter";
   if (game.activeRoll) return isActiveRollRecoverable(game.activeRoll) ? "Hent kast" : "Venter på kast";
   if (game.rollsUsed === 0) return "Kast";
-  return game.rollsLeft > 0 ? "Kast igjen" : "Ingen kast";
+  if (game.rollsLeft > 0) return "Kast igjen";
+  return game.canUseSavedRoll ? "Bruk sjetong" : "Ingen kast";
 }
 
 function savedRollText(count) {
@@ -2886,6 +3107,13 @@ function focusChatInput() {
 function renderChatEmojiPanel() {
   if (!els.chatEmojiPanel) return;
   const quoteButton = `<button class="chat-quote-button" type="button" data-chat-quote>${renderIconButtonContent("get-quote", "Random cheesy quote")}</button>`;
+  const toneLyricButton = `
+    <button class="chat-tone-lyric-button" type="button" data-chat-tone-lyric title="Neste Tønes-linje" aria-label="Neste Tønes-linje">
+      <img class="chat-tone-lyric-photo" src="/assets/t%C3%B8nes.jpeg" alt="" aria-hidden="true" loading="lazy" decoding="async">
+      <span class="sr-only">Neste Tønes-linje</span>
+    </button>
+  `;
+  const specialButtons = `<div class="chat-special-actions">${quoteButton}${toneLyricButton}</div>`;
   const emojiButtons = CHAT_EMOJI_PANEL_SHORTCUTS.map((shortcut) => {
     const emoji = CHAT_EMOJI_SHORTCUTS[shortcut];
     const reaction = CHAT_REACTION_ICONS[shortcut] || { icon: "comments" };
@@ -2894,7 +3122,7 @@ function renderChatEmojiPanel() {
     const title = `${label} (${shortcutLabel})`;
     return `<button class="chat-emoji-option" type="button" data-chat-emoji="${escapeHtml(emoji)}" data-chat-shortcut="${escapeHtml(shortcutLabel)}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">${renderScribbyIcon(reaction.icon, label, "scribby-icon chat-reaction-icon")}<span class="chat-emoji-tooltip" aria-hidden="true">${escapeHtml(shortcutLabel)}</span></button>`;
   }).join("");
-  els.chatEmojiPanel.innerHTML = `${quoteButton}${emojiButtons}`;
+  els.chatEmojiPanel.innerHTML = `${specialButtons}${emojiButtons}`;
 }
 
 function syncChatEmojiPanel() {
@@ -3140,6 +3368,32 @@ function handleChatShortcutSuggestionClick(event) {
 
 function randomChatQuote() {
   return CHAT_CRINGY_QUOTES[Math.floor(Math.random() * CHAT_CRINGY_QUOTES.length)];
+}
+
+function toneYatzyLyricEmoji() {
+  return CHAT_REACTION_ICONS[TONES_YATZY_LYRIC_ICON_KEY]?.emoji || "🎸";
+}
+
+function toneYatzyLyricTextFromMessage(message) {
+  const text = String(message || "").trim();
+  const icon = toneYatzyLyricEmoji();
+  if (!text.startsWith(icon)) return "";
+  return text.slice(icon.length).trim();
+}
+
+function isToneYatzyLyricMessage(entry) {
+  const lyricText = toneYatzyLyricTextFromMessage(entry?.message);
+  return Boolean(lyricText && TONES_YATZY_LYRIC_LINES.includes(lyricText));
+}
+
+function sentToneYatzyLyricCount() {
+  return (state.game?.chat || []).filter(isToneYatzyLyricMessage).length;
+}
+
+function nextToneYatzyLyricMessage() {
+  if (!TONES_YATZY_LYRIC_LINES.length) return "";
+  const line = TONES_YATZY_LYRIC_LINES[sentToneYatzyLyricCount() % TONES_YATZY_LYRIC_LINES.length];
+  return `${toneYatzyLyricEmoji()} ${line}`;
 }
 
 function handleChatEmojiOutsidePointerDown(event) {
@@ -3604,6 +3858,18 @@ if (els.chatEmojiPanel) {
     if (quoteButton) {
       toggleChatEmojiPanel(false);
       await sendChat(randomChatQuote(), { clearInput: false, kind: "quote" });
+      return;
+    }
+
+    const toneLyricButton = event.target.closest("[data-chat-tone-lyric]");
+    if (toneLyricButton) {
+      toggleChatEmojiPanel(false);
+      const lyricMessage = nextToneYatzyLyricMessage();
+      if (!lyricMessage) {
+        showToast("Legg inn korte Tønes-linjer først.");
+        return;
+      }
+      await sendChat(lyricMessage, { clearInput: false, kind: "quote" });
       return;
     }
 

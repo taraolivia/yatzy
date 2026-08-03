@@ -48,6 +48,7 @@ const ASSET_STATIC_CACHE = "public, max-age=604800";
 
 const games = loadGames();
 const streams = new Map();
+const activeRollRecoveryTimers = new Map();
 const ROLL_START_DELAY_MS = 60;
 const ROLL_RECOVERY_TIMEOUT_MS = 30_000;
 const CHAT_MAX_LENGTH = 160;
@@ -507,6 +508,7 @@ function assignHostIfNeeded(game) {
 }
 
 function resetTurnState(game, rules = getRules(game.mode)) {
+  clearActiveRollRecovery(game);
   game.dice = [];
   game.held = Array.from({ length: rules.diceCount }, () => false);
   game.rollsUsed = 0;
@@ -663,16 +665,63 @@ function activeRollAge(activeRoll) {
   return Date.now() - startedAt;
 }
 
+function clearActiveRollRecovery(gameOrCode) {
+  const code = typeof gameOrCode === "string" ? gameOrCode : gameOrCode?.code;
+  if (!code) return;
+  const timer = activeRollRecoveryTimers.get(code);
+  if (timer) clearTimeout(timer);
+  activeRollRecoveryTimers.delete(code);
+}
+
+function scheduleActiveRollRecovery(game) {
+  if (!game?.activeRoll) {
+    clearActiveRollRecovery(game);
+    return;
+  }
+
+  clearActiveRollRecovery(game);
+  const delay = Math.max(0, ROLL_RECOVERY_TIMEOUT_MS - activeRollAge(game.activeRoll) + 25);
+  const timer = setTimeout(() => {
+    activeRollRecoveryTimers.delete(game.code);
+    try {
+      if (commitExpiredActiveRoll(game)) {
+        saveAndBroadcast(game);
+      } else if (game.activeRoll) {
+        scheduleActiveRollRecovery(game);
+      }
+    } catch (error) {
+      console.error("Kunne ikke hente inn hengende terningkast:", error);
+    }
+  }, delay);
+  timer.unref?.();
+  activeRollRecoveryTimers.set(game.code, timer);
+}
+
+function recoverOrScheduleActiveRoll(game) {
+  if (!game?.activeRoll) {
+    clearActiveRollRecovery(game);
+    return false;
+  }
+  if (commitExpiredActiveRoll(game)) {
+    saveAndBroadcast(game);
+    return true;
+  }
+  scheduleActiveRollRecovery(game);
+  return false;
+}
+
 function commitActiveRoll(game, activeRoll = game.activeRoll) {
   if (!activeRoll || game.activeRoll?.id !== activeRoll.id) return false;
   const player = game.players.find((entry) => entry.seatId === activeRoll.seatId);
   if (!player) throw httpError(409, "Spilleren som kastet finnes ikke lenger.");
 
+  clearActiveRollRecovery(game);
   game.activeRoll = null;
   try {
     rollDice(game, player, game.version, activeRoll.dice, activeRoll.useSavedRoll);
   } catch (error) {
     game.activeRoll = activeRoll;
+    scheduleActiveRollRecovery(game);
     throw error;
   }
   return true;
@@ -798,6 +847,7 @@ function beginSynchronizedRoll(game, player, version, useSavedRoll = false) {
     startsAt: startedAt + ROLL_START_DELAY_MS
   };
   touch(game);
+  scheduleActiveRollRecovery(game);
 }
 
 function completeSynchronizedRoll(game, player, rollId) {
@@ -1031,6 +1081,7 @@ function undoLastScore(game, player, version) {
   game.dice = Array.isArray(undo.previousDice) ? [...undo.previousDice] : [];
   game.held = Array.isArray(undo.previousHeld) ? [...undo.previousHeld] : Array.from({ length: getRules(game.mode).diceCount }, () => false);
   game.rollsUsed = Number(undo.previousRollsUsed) || 0;
+  clearActiveRollRecovery(game);
   game.activeRoll = null;
   game.log = Array.isArray(undo.previousLog) ? undo.previousLog.map((entry) => ({ ...entry })) : game.log;
   game.lastScoreUndo = null;
@@ -1088,7 +1139,7 @@ async function handleApi(req, res, url) {
   const action = match[2] || "";
   const game = games.get(code);
   if (!game) return jsonResponse(res, 404, { error: "Fant ikke rommet." });
-  if (commitExpiredActiveRoll(game)) saveAndBroadcast(game);
+  recoverOrScheduleActiveRoll(game);
 
   if (req.method === "GET" && !action) {
     return jsonResponse(res, 200, { game: publicGame(game) });
@@ -1192,7 +1243,7 @@ function handleEvents(req, res, url) {
     jsonResponse(res, 404, { error: "Fant ikke rommet." });
     return true;
   }
-  if (commitExpiredActiveRoll(game)) saveAndBroadcast(game);
+  recoverOrScheduleActiveRoll(game);
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream; charset=utf-8",
