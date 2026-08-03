@@ -559,7 +559,7 @@ const CHAT_SHORTCUT_SUGGESTION_LIMIT = 8;
 const TONES_YATZY_LYRIC_ICON_KEY = "guitar";
 // Add short user-provided lyric excerpts here; the button sends them in order.
 const TONES_YATZY_LYRIC_LINES = [
-  "Sitta tett innte, trilla terningane, og kos' okke ",
+  "Sitta tett innte, trilla terningane, og kos' okke",
   "akkurat som om me va på hytto",
   "Skal me spela yatzy, skal me spela yatzy",
   "åååååh, skal me spela yatzy",
@@ -3381,18 +3381,20 @@ function toneYatzyLyricTextFromMessage(message) {
   return text.slice(icon.length).trim();
 }
 
-function isToneYatzyLyricMessage(entry) {
-  const lyricText = toneYatzyLyricTextFromMessage(entry?.message);
-  return Boolean(lyricText && TONES_YATZY_LYRIC_LINES.includes(lyricText));
-}
-
-function sentToneYatzyLyricCount() {
-  return (state.game?.chat || []).filter(isToneYatzyLyricMessage).length;
+function nextToneYatzyLyricIndex() {
+  if (!TONES_YATZY_LYRIC_LINES.length) return 0;
+  const lines = TONES_YATZY_LYRIC_LINES.map((line) => line.trim());
+  let index = 0;
+  for (const entry of state.game?.chat || []) {
+    const lyricText = toneYatzyLyricTextFromMessage(entry?.message);
+    if (lyricText && lyricText === lines[index % lines.length]) index += 1;
+  }
+  return index % lines.length;
 }
 
 function nextToneYatzyLyricMessage() {
   if (!TONES_YATZY_LYRIC_LINES.length) return "";
-  const line = TONES_YATZY_LYRIC_LINES[sentToneYatzyLyricCount() % TONES_YATZY_LYRIC_LINES.length];
+  const line = TONES_YATZY_LYRIC_LINES[nextToneYatzyLyricIndex()].trim();
   return `${toneYatzyLyricEmoji()} ${line}`;
 }
 
